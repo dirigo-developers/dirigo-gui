@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dirigo-gui"
+version = "0.1.0"
+description = "Dirigo reference GUI implementation."
+authors = [
+    {name = "T. D. Weber", email = "tweber@mit.edu"}
+]
+license = {text = "MIT"}
+dependencies = [
+    "customtkinter"
+]
+
+[project.entry-points."dirigo_guis"]
+reference = "dirigo_gui:ReferenceGUI"
