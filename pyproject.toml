@@ -11,7 +11,8 @@ authors = [
 ]
 license = {text = "MIT"}
 dependencies = [
-    "customtkinter"
+    "customtkinter",
+    "pillow"
 ]
 
 [project.entry-points."dirigo_guis"]
