@@ -42,6 +42,7 @@ class ReferenceGUI(ctk.CTk):
         super().__init__()
         self.controller = dirigo_controller
         self.display = None
+        self.queue = queue.Queue()
 
         self.title("Dirigo Reference GUI")
         self.geometry("800x600")
@@ -79,6 +80,11 @@ class ReferenceGUI(ctk.CTk):
         self.processor = self.controller.processor_factory(self.acquisition)
         self.display = self.controller.display_factory(self.processor)
 
+        # Connect threads 
+        self.acquisition.publisher.subscribe(self.processor.inbox)
+        self.processor.publisher.subscribe(self.display.inbox)
+        self.display.publisher.subscribe(self.queue)
+
         self.display.start()
         self.processor.start()
         self.acquisition.start()
@@ -92,7 +98,7 @@ class ReferenceGUI(ctk.CTk):
     def poll_queue(self):
         try:
             if self.display:
-                image = self.display.display_queue.get(timeout=0.01)
+                image = self.queue.get(timeout=0.01)
 
                 if image is None:
                     self.stop_acquisition()
