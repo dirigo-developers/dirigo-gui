@@ -18,6 +18,7 @@ class SingleChannelFrame(ctk.CTkFrame):
     def __init__(self, parent, dirigo: Dirigo, channel_index: int):
         """Constructs a frame with channel display properties."""
         super().__init__(parent, corner_radius=10)
+        self.index = channel_index
         self._display_channel: DisplayChannel = None
 
         # Slider limits
@@ -28,7 +29,7 @@ class SingleChannelFrame(ctk.CTkFrame):
         self.enabled_var = ctk.BooleanVar(value=True)
         self.enable_checkbox = ctk.CTkCheckBox(
             self, 
-            text=f"Channel {channel_index + 1}",
+            text=f"Channel {self.index + 1}",
             variable=self.enabled_var,
             command=self.update_enabled
         )
@@ -95,20 +96,20 @@ class SingleChannelFrame(ctk.CTkFrame):
 
         self.max_entry.bind(
             "<Return>", 
-            lambda event: self.update_max_slider(self.max_entry, self.max_slider)
+            lambda event: self.update_max_slider()
         )
         self.max_entry.bind(
             "<FocusOut>",
-            lambda event: self.update_max_slider(self.max_entry, self.max_slider)
+            lambda event: self.update_max_slider()
         )
 
     def update_enabled(self):
         if self._display_channel:
             self._display_channel.enabled = self.enabled_var.get()
 
-    def update_color_vector(self, new_lut: str):
+    def update_color_vector(self, new_vector: str):
         if self._display_channel:
-            self._display_channel.color_vector = ColorVector[new_lut.upper()]
+            self._display_channel.color_vector = ColorVector[new_vector.upper()]
 
     def update_min_entry(self, value):
         """Update the min entry box and display_min property."""
@@ -127,11 +128,7 @@ class SingleChannelFrame(ctk.CTkFrame):
     def update_min_slider(self):
         """Update the min slider when the entry box value changes."""
         try:
-            value = int(self.min_entry.get())
-            if value < self.slider_min:  # Clamp to minimum
-                value = self.slider_min
-            elif value > self.slider_max:  # Clamp to maximum
-                value = self.slider_max
+            value = self.clamp_value(self.min_entry.get())
             self.min_slider.set(value)
             self.min_entry.delete(0, ctk.END)
             self.min_entry.insert(0, str(value))  # Update entry with clamped value
@@ -145,11 +142,7 @@ class SingleChannelFrame(ctk.CTkFrame):
     def update_max_slider(self):
         """Update the max slider when the entry box value changes."""
         try:
-            value = int(self.max_entry.get())
-            if value < self.slider_min:  # Clamp to minimum
-                value = self.slider_min
-            elif value > self.slider_max:  # Clamp to maximum
-                value = self.slider_max
+            value = self.clamp_value(self.max_entry.get())
             self.max_slider.set(value)
             self.max_entry.delete(0, ctk.END)
             self.max_entry.insert(0, str(value))  # Update entry with clamped value
@@ -160,13 +153,57 @@ class SingleChannelFrame(ctk.CTkFrame):
             self.max_entry.delete(0, ctk.END)
             self.max_entry.insert(0, str(int(self.max_slider.get())))
 
+    def clamp_value(self, value) -> int :
+        value = int(value)
+        if value < self.slider_min:  # Clamp to minimum
+            value = self.slider_min
+        elif value > self.slider_max:  # Clamp to maximum
+            value = self.slider_max
+        return value
+    
+    @property
+    def enabled(self) -> bool:
+        return bool(self.enabled_var.get())
+    
+    @enabled.setter
+    def enabled(self, new_state: bool):
+        if not isinstance(new_state, bool):
+            raise ValueError("`enabled` must be set with a boolean value")
+        self.enabled_var.set(new_state)
+    
+    @property
+    def color_vector_name(self) -> 'str':
+        return self.color_vector_var.get()
+    
+    @color_vector_name.setter
+    def color_vector_name(self, new_color_vector_name: str):
+        if not isinstance(new_color_vector_name, str):
+            raise ValueError("`color_vector_name` must be set with a string value")
+        if new_color_vector_name.capitalize() not in ColorVector.get_color_names():
+            raise ValueError(f"Invalid ColorVector name: {new_color_vector_name}")
+        self.color_vector_var.set(new_color_vector_name.capitalize())
+
     @property
     def min(self) -> int:
         return int(self.min_entry.get())
     
+    @min.setter
+    def min(self, new_value: int):
+        new_value = self.clamp_value(new_value)
+        self.min_slider.set(new_value)
+        self.min_entry.delete(0, ctk.END)
+        self.min_entry.insert(0, str(new_value))
+    
     @property
     def max(self) -> int:
         return int(self.max_entry.get())
+    
+    @max.setter
+    def max(self, new_value: int):
+        new_value = self.clamp_value(new_value)
+        self.max_slider.set(new_value)
+        self.max_entry.delete(0, ctk.END)
+        self.max_entry.insert(0, str(new_value))
     
     def set_widgets_state(self, new_state):
         self.enable_checkbox.configure(state=new_state)

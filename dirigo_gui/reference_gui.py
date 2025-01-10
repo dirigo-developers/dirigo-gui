@@ -1,6 +1,9 @@
 import queue
 import time
+from pathlib import Path
+import toml
 
+from platformdirs import user_config_dir
 import customtkinter as ctk
 from PIL import Image, ImageTk
 import numpy as np
@@ -60,6 +63,7 @@ class ReferenceGUI(ctk.CTk):
         self.title("Dirigo Reference GUI")
         self.acquisition_running = False
         self._configure_ui()
+        self._restore_settings()
 
         self.poll_queue()
 
@@ -83,6 +87,34 @@ class ReferenceGUI(ctk.CTk):
         self.display_canvas.configure(width=1000, height=1000)
         self.display_canvas.pack(side=ctk.LEFT, fill=ctk.BOTH, expand=True, padx=10, pady=10)
         self.canvas_image = None  # Store reference to avoid garbage collection
+
+    def _restore_settings(self):
+        config_dir = Path(user_config_dir("Dirigo-GUI", "Dirigo"))
+
+        try:
+            with open(config_dir / "settings.toml", "r") as file:
+                settings = toml.load(file)
+            # Populate GUI
+
+            if settings["window_color_mode"] == "Dark":
+                self.left_panel.theme_switch.select()
+            else:
+                self.left_panel.theme_switch.deselect()
+            ctk.set_appearance_mode(settings["window_color_mode"])
+
+            i = 0
+            while f"channel_{i}" in settings:
+                channel_settings = settings[f"channel_{i}"]
+                channel_frame = self.channels_control.channel_frames[i]
+                channel_frame.enabled = channel_settings["enabled"]
+                channel_frame.color_vector_name = channel_settings["color_vector"]
+                channel_frame.min = channel_settings["display_min"]
+                channel_frame.max = channel_settings["display_max"]
+                i += 1
+
+        except FileNotFoundError:
+            raise Warning("Could not find GUI settings file. Using defaults.") 
+
 
     def toggle_acquisition(self):
         self.acquisition_running = not self.acquisition_running
@@ -115,8 +147,7 @@ class ReferenceGUI(ctk.CTk):
     def stop_acquisition(self):
         self.acquisition.stop()
         self.acquisition_running = False
-        text = "Start Acquisition"
-        self.left_panel.acquisition_button.configure(text=text)
+        self.left_panel.acquisition_button.configure(text="Start Acquisition")
 
     def poll_queue(self):
         try:
@@ -183,6 +214,35 @@ class ReferenceGUI(ctk.CTk):
         else:
             # Still waiting for acquisition to finish, check again in 100ms
             self.after(100, self._check_acquisition_stopped)
+
+    def destroy(self):
+        # Save GUI settings
+        self._save_gui_settings()
+
+        # Close Tkinter
+        return super().destroy()
+    
+    def _save_gui_settings(self):
+        config_dir = Path(user_config_dir("Dirigo-GUI", "Dirigo"))
+        settings = dict()
+
+        # Light/Dark mode
+        mode = "Dark" if self.left_panel.theme_switch.get() else "Light"
+        settings["window_color_mode"] = mode
+
+        # Channel controls
+        for channel_frame in self.channels_control.channel_frames:
+            channel_settings = dict()
+            channel_settings["enabled"] = channel_frame.enabled
+            channel_settings["color_vector"] = channel_frame.color_vector_var.get() # Cyan, Gray, etc
+            channel_settings["display_min"] = channel_frame.min
+            channel_settings["display_max"] = channel_frame.max
+            
+            settings[f"channel_{channel_frame.index}"] = channel_settings
+
+        with open(config_dir / "settings.toml", "w") as file:
+            toml.dump(settings, file)
+
 
 
 if __name__ == "__main__":
