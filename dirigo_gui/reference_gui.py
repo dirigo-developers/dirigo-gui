@@ -10,8 +10,8 @@ import numpy as np
 
 from dirigo.main import Dirigo
 from dirigo.sw_interfaces import Acquisition, Processor, Display
-from dirigo_gui.components.channels import ChannelsControl
-
+from dirigo_gui.components.channel_control import DisplayControl
+from dirigo_gui.components.logger_control import LoggerControl
 
 
 class LeftPanel(ctk.CTkFrame):
@@ -46,9 +46,11 @@ class RightPanel(ctk.CTkFrame):
     def __init__(self, parent, dirigo: Dirigo):
         super().__init__(parent, width=200, corner_radius=0)
         
-        self.channels_control = ChannelsControl(self, dirigo)
-        self.channels_control.pack()
+        self.display_control = DisplayControl(self, dirigo)
+        self.display_control.pack()
 
+        self.logger_control = LoggerControl(self)
+        self.logger_control.pack()
       
 class ReferenceGUI(ctk.CTk):
     def __init__(self, dirigo_controller: Dirigo):
@@ -80,12 +82,13 @@ class ReferenceGUI(ctk.CTk):
         self.left_panel.pack(side=ctk.LEFT, fill=ctk.Y)
 
         self.right_panel = RightPanel(self, self.dirigo)
-        self.channels_control = self.right_panel.channels_control # pass reference up to the parent GUI
+        self.channels_control = self.right_panel.display_control # pass reference up to the parent GUI
+        self.logger_control = self.right_panel.logger_control
         self.right_panel.pack(side=ctk.RIGHT, fill=ctk.Y)
 
         self.display_canvas = ctk.CTkCanvas(self, bg="black", highlightthickness=0)
         self.display_canvas.configure(width=1000, height=1000)
-        self.display_canvas.pack(side=ctk.LEFT, fill=ctk.BOTH, expand=True, padx=10, pady=10)
+        self.display_canvas.pack(side=ctk.LEFT, fill=ctk.BOTH, expand=False, padx=10, pady=10)
         self.canvas_image = None  # Store reference to avoid garbage collection
 
     def _restore_settings(self):
@@ -131,16 +134,21 @@ class ReferenceGUI(ctk.CTk):
         self.acquisition = self.dirigo.acquisition_factory('frame')
         self.processor = self.dirigo.processor_factory(self.acquisition)
         self.display = self.dirigo.display_factory(self.processor)
+        self.logger = self.dirigo.logger_factory(self.processor)
 
         # Connect threads 
         self.acquisition.add_subscriber(self.processor)
         self.processor.add_subscriber(self.display)
+        self.processor.add_subscriber(self.logger)
         self.display.add_subscriber(self)
 
         # Link Display worker with GUI channel control elements 
         self.channels_control.link_display_worker(self.display)
+        # similar
+        self.logger_control.link_logger_worker(self.logger)
 
         self.display.start()
+        self.logger.start()
         self.processor.start()
         self.acquisition.start()
 
