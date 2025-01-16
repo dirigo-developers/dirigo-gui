@@ -12,31 +12,21 @@ from dirigo.main import Dirigo
 from dirigo.sw_interfaces import Acquisition, Processor, Display
 from dirigo_gui.components.channel_control import DisplayControl
 from dirigo_gui.components.logger_control import LoggerControl
+from dirigo_gui.components.acquisition_control import AcquisitionControl
 
 
 class LeftPanel(ctk.CTkFrame):
-    def __init__(self, parent, acquisition_options, start_callback, toggle_theme_callback):
+    def __init__(self, parent, start_callback, stop_callback, toggle_theme_callback):
         super().__init__(parent, width=200, corner_radius=0)
-        self.start_callback = start_callback
+        self._start_callback = start_callback
+        self._stop_callback = stop_callback
         self.toggle_theme_callback = toggle_theme_callback
-        self._configure_ui(acquisition_options)
+        self._configure_ui()
 
-    def _configure_ui(self, acquisitions: set[str]):
-        self.acquisition_button = ctk.CTkButton(self, text="Start Acquisition", command=self.start_callback)
-        self.acquisition_button.pack(pady=10, padx=10)
+    def _configure_ui(self):
+        self.acquisition_control = AcquisitionControl(self, self._start_callback, self._stop_callback)
+        self.acquisition_control.pack(pady=10, padx=10)
 
-        self.dummy_button_1 = ctk.CTkButton(self, text="Dummy Button 1")
-        self.dummy_button_1.pack(pady=10, padx=10)
-
-        self.dummy_button_2 = ctk.CTkButton(self, text="Dummy Button 2")
-        self.dummy_button_2.pack(pady=10, padx=10)
-
-        self.options_menu = ctk.CTkOptionMenu(
-            self,
-            values=list(acquisitions),
-        )
-        self.options_menu.pack(pady=10, padx=10)
-        self.options_menu.set("Select an Option")
 
         self.theme_switch = ctk.CTkSwitch(self, text="Toggle Mode", command=self.toggle_theme_callback)
         self.theme_switch.pack(pady=10, padx=10)
@@ -52,6 +42,7 @@ class RightPanel(ctk.CTkFrame):
         self.logger_control = LoggerControl(self)
         self.logger_control.pack()
       
+
 class ReferenceGUI(ctk.CTk):
     def __init__(self, dirigo_controller: Dirigo):
         super().__init__()
@@ -63,7 +54,6 @@ class ReferenceGUI(ctk.CTk):
         self.inbox = queue.Queue() # to receive queued data from Display
 
         self.title("Dirigo Reference GUI")
-        self.acquisition_running = False
         self._configure_ui()
         self._restore_settings()
 
@@ -75,10 +65,11 @@ class ReferenceGUI(ctk.CTk):
         # Need: peek at acqspec
         self.left_panel = LeftPanel(
             self,
-            acquisition_options=self.dirigo.acquisition_types,
-            start_callback=self.toggle_acquisition,
+            start_callback=self.start_acquisition,
+            stop_callback=self.stop_acquisition,
             toggle_theme_callback=self.toggle_mode
         )
+        self.acquisition_control = self.left_panel.acquisition_control
         self.left_panel.pack(side=ctk.LEFT, fill=ctk.Y)
 
         self.right_panel = RightPanel(self, self.dirigo)
@@ -118,44 +109,36 @@ class ReferenceGUI(ctk.CTk):
         except FileNotFoundError:
             raise Warning("Could not find GUI settings file. Using defaults.") 
 
-
-    def toggle_acquisition(self):
-        self.acquisition_running = not self.acquisition_running
-        text = "Stop Acquisition" if self.acquisition_running else "Start Acquisition"
-        self.left_panel.acquisition_button.configure(text=text)
-
-        if self.acquisition_running:
-            self.start_acquisition()
-        else:
-            self.stop_acquisition()
-
-    def start_acquisition(self):
+    def start_acquisition(self, spec: str = "focus"):
         self.display_count = 0
-        self.acquisition = self.dirigo.acquisition_factory('frame')
+
+        # Create workers
+        self.acquisition = self.dirigo.acquisition_factory('frame', spec_name=spec)
         self.processor = self.dirigo.processor_factory(self.acquisition)
-        self.display = self.dirigo.display_factory(self.processor)
-        self.logger = self.dirigo.logger_factory(self.processor)
+        self.display = self.dirigo.display_factory(self.processor)            
 
         # Connect threads 
         self.acquisition.add_subscriber(self.processor)
-        self.processor.add_subscriber(self.display)
-        self.processor.add_subscriber(self.logger)
+        self.processor.add_subscriber(self.display)           
         self.display.add_subscriber(self)
 
         # Link Display worker with GUI channel control elements 
-        self.channels_control.link_display_worker(self.display)
-        # similar
-        self.logger_control.link_logger_worker(self.logger)
+        self.channels_control.link_display_worker(self.display)          
+
+        if spec == 'capture':
+            # Create logger worker, connect, and start
+            self.logger = self.dirigo.logger_factory(self.processor)
+            self.processor.add_subscriber(self.logger)
+            self.logger_control.link_logger_worker(self.logger)
+            self.logger.start()
 
         self.display.start()
-        self.logger.start()
         self.processor.start()
         self.acquisition.start()
 
     def stop_acquisition(self):
         self.acquisition.stop()
-        self.acquisition_running = False
-        self.left_panel.acquisition_button.configure(text="Start Acquisition")
+        self.acquisition_control.stopped()
 
     def poll_queue(self):
         try:
@@ -200,7 +183,7 @@ class ReferenceGUI(ctk.CTk):
         """
         Called when the user clicks the window 'X' button.
         """
-        if self.acquisition_running:
+        if self.acquisition_control.acquisition_running:
             # Signal the acquisition to stop
             self.stop_acquisition()
 
@@ -216,7 +199,7 @@ class ReferenceGUI(ctk.CTk):
         If the acquisition is done, destroy the GUI.
         Otherwise, keep polling until it is complete.
         """
-        if not self.acquisition_running:
+        if not self.acquisition_control.acquisition_running:
             # The acquisition is fully stopped now; destroy the main window
             self.destroy()
         else:
