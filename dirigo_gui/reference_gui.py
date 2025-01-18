@@ -10,26 +10,34 @@ import numpy as np
 
 from dirigo.main import Dirigo
 from dirigo.sw_interfaces import Acquisition, Processor, Display
+from dirigo.hw_interfaces.stage import MultiAxisStage
+from dirigo.plugins.acquisitions import FrameAcquisitionSpec
 from dirigo_gui.components.channel_control import DisplayControl
 from dirigo_gui.components.logger_control import LoggerControl
 from dirigo_gui.components.acquisition_control import AcquisitionControl
+from dirigo_gui.components.stage_control import StageControl
+
 
 
 class LeftPanel(ctk.CTkFrame):
-    def __init__(self, parent, start_callback, stop_callback, toggle_theme_callback):
+    def __init__(self, parent, controller: Dirigo, start_callback, stop_callback, toggle_theme_callback):
         super().__init__(parent, width=200, corner_radius=0)
         self._start_callback = start_callback
         self._stop_callback = stop_callback
-        self.toggle_theme_callback = toggle_theme_callback
+        self._toggle_theme_callback = toggle_theme_callback
+        self._stage = controller.hw.stage
+        self._objective_scanner = controller.hw.objective_scanner
         self._configure_ui()
 
     def _configure_ui(self):
         self.acquisition_control = AcquisitionControl(self, self._start_callback, self._stop_callback)
         self.acquisition_control.pack(pady=10, padx=10)
 
-
-        self.theme_switch = ctk.CTkSwitch(self, text="Toggle Mode", command=self.toggle_theme_callback)
+        self.theme_switch = ctk.CTkSwitch(self, text="Toggle Mode", command=self._toggle_theme_callback)
         self.theme_switch.pack(pady=10, padx=10)
+
+        self.stage_control = StageControl(self, self._stage, self._objective_scanner, fg_color="transparent")
+        self.stage_control.pack(side=ctk.BOTTOM, fill="x", padx=10)
 
 
 class RightPanel(ctk.CTkFrame):
@@ -41,11 +49,25 @@ class RightPanel(ctk.CTkFrame):
 
         self.logger_control = LoggerControl(self)
         self.logger_control.pack()
-      
+
+
+class DisplayCanvas(ctk.CTkCanvas):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._spec: FrameAcquisitionSpec = None
+
+    def add_acquisition_spec(self, spec: FrameAcquisitionSpec):
+        self._spec = spec
+        self.configure(
+            width=self._spec.pixels_per_line,
+            height=self._spec.lines_per_frame,
+        )
+
 
 class ReferenceGUI(ctk.CTk):
     def __init__(self, dirigo_controller: Dirigo):
         super().__init__()
+
         self.dirigo = dirigo_controller
 
         self.acquisition: Acquisition = None
@@ -65,11 +87,13 @@ class ReferenceGUI(ctk.CTk):
         # Need: peek at acqspec
         self.left_panel = LeftPanel(
             self,
+            controller=self.dirigo,
             start_callback=self.start_acquisition,
             stop_callback=self.stop_acquisition,
-            toggle_theme_callback=self.toggle_mode
+            toggle_theme_callback=self.toggle_mode,
         )
         self.acquisition_control = self.left_panel.acquisition_control
+        self.stage_control = self.left_panel.stage_control
         self.left_panel.pack(side=ctk.LEFT, fill=ctk.Y)
 
         self.right_panel = RightPanel(self, self.dirigo)
@@ -77,9 +101,9 @@ class ReferenceGUI(ctk.CTk):
         self.logger_control = self.right_panel.logger_control
         self.right_panel.pack(side=ctk.RIGHT, fill=ctk.Y)
 
-        self.display_canvas = ctk.CTkCanvas(self, bg="black", highlightthickness=0)
+        self.display_canvas = DisplayCanvas(self, bg="black", highlightthickness=0)
         self.display_canvas.configure(width=1000, height=1000)
-        self.display_canvas.pack(side=ctk.LEFT, fill=ctk.BOTH, expand=False, padx=10, pady=10)
+        self.display_canvas.pack(expand=True, padx=10, pady=10)
         self.canvas_image = None  # Store reference to avoid garbage collection
 
     def _restore_settings(self):
@@ -122,8 +146,9 @@ class ReferenceGUI(ctk.CTk):
         self.processor.add_subscriber(self.display)           
         self.display.add_subscriber(self)
 
-        # Link Display worker with GUI channel control elements 
-        self.channels_control.link_display_worker(self.display)          
+        # Link workers to GUI control elements
+        self.channels_control.link_display_worker(self.display)  
+        self.display_canvas.add_acquisition_spec(self.acquisition.spec)
 
         if spec == 'capture':
             # Create logger worker, connect, and start
@@ -152,7 +177,7 @@ class ReferenceGUI(ctk.CTk):
         except queue.Empty:
             pass
         finally:
-            self.after(10, self.poll_queue)
+            self.after(16, self.poll_queue)
 
     def update_display(self, image: np.ndarray):
         self.display_count += 1
@@ -237,6 +262,6 @@ class ReferenceGUI(ctk.CTk):
 
 
 if __name__ == "__main__":
-    diri = Dirigo()
-    app = ReferenceGUI(diri)
+    dirigo = Dirigo()
+    app = ReferenceGUI(dirigo)
     app.mainloop()
