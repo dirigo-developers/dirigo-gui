@@ -14,7 +14,7 @@ from dirigo.hw_interfaces.stage import MultiAxisStage
 from dirigo.plugins.acquisitions import FrameAcquisitionSpec
 from dirigo_gui.components.channel_control import DisplayControl
 from dirigo_gui.components.logger_control import LoggerControl
-from dirigo_gui.components.acquisition_control import AcquisitionControl
+from dirigo_gui.components.acquisition_control import AcquisitionControl, FrameSpecificationControl
 from dirigo_gui.components.stage_control import StageControl
 
 
@@ -35,6 +35,9 @@ class LeftPanel(ctk.CTkFrame):
 
         self.theme_switch = ctk.CTkSwitch(self, text="Toggle Mode", command=self._toggle_theme_callback)
         self.theme_switch.pack(pady=10, padx=10)
+
+        self.frame_specification = FrameSpecificationControl(self)
+        self.frame_specification.pack(pady=10, padx=10)
 
         self.stage_control = StageControl(self, self._stage, self._objective_scanner, fg_color="transparent")
         self.stage_control.pack(side=ctk.BOTTOM, fill="x", padx=10)

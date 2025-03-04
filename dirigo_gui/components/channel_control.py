@@ -257,7 +257,7 @@ class DisplayControl(ctk.CTkFrame):
         # Make title label
         font = ctk.CTkFont(size=18, weight="bold")
         title_label = ctk.CTkLabel(self, text=title, font=font)
-        title_label.pack(anchor="n", pady=(10,0))
+        title_label.pack(anchor="nw", pady=(10,0), padx=15)
 
         # Make N SingleChannelFrames
         self.channel_frames: list[SingleChannelFrame] = []

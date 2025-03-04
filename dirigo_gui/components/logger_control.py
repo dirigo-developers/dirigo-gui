@@ -21,7 +21,7 @@ class LoggerControl(ctk.CTkFrame):
         # Title Label
         font = ctk.CTkFont(size=18, weight="bold")
         self.title_label = ctk.CTkLabel(self, text=title, font=font)
-        self.title_label.grid(row=0, column=0, columnspan=3, pady=(5, 5), padx=5)
+        self.title_label.grid(row=0, column=0, columnspan=3, pady=(5, 5), padx=15, sticky='w')
         
         # Basename Entry
         self.basename_label = ctk.CTkLabel(self, text="Basename:")

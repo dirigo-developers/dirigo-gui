@@ -6,7 +6,7 @@ from dirigo.hw_interfaces.scanner import ObjectiveZScanner
 
 
 XY_VELOCITY = units.Velocity("2 mm/s")
-Z_VELOCITY = units.Velocity("0.02 mm/s")
+Z_VELOCITY = units.Velocity("0.03 mm/s")
 
 
 class XYControl(ctk.CTkFrame):
