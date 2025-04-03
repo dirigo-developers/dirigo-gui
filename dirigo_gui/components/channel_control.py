@@ -261,7 +261,7 @@ class DisplayControl(ctk.CTkFrame):
 
         # Make N SingleChannelFrames
         self.channel_frames: list[SingleChannelFrame] = []
-        for i in range(self.dirigo.hw.nchannels):
+        for i in range(self.dirigo.hw.nchannels_present):
             channel_frame = SingleChannelFrame(self, self.dirigo, i)
             channel_frame.pack(fill="y", pady=5, padx=10, anchor="n")
             self.channel_frames.append(channel_frame)  # Save reference to each ChannelFrame

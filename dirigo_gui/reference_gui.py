@@ -95,17 +95,18 @@ class ReferenceGUI(ctk.CTk):
             stop_callback=self.stop_acquisition,
             toggle_theme_callback=self.toggle_mode,
         )
-        self.acquisition_control = self.left_panel.acquisition_control
+        self.acquisition_control = self.left_panel.acquisition_control # pass refs up to the parent GUI for easier access
+        self.frame_specification = self.left_panel.frame_specification
         self.stage_control = self.left_panel.stage_control
         self.left_panel.pack(side=ctk.LEFT, fill=ctk.Y)
 
         self.right_panel = RightPanel(self, self.dirigo)
-        self.channels_control = self.right_panel.display_control # pass reference up to the parent GUI
+        self.channels_control = self.right_panel.display_control 
         self.logger_control = self.right_panel.logger_control
         self.right_panel.pack(side=ctk.RIGHT, fill=ctk.Y)
 
         self.display_canvas = DisplayCanvas(self, bg="black", highlightthickness=0)
-        self.display_canvas.configure(width=1000, height=1000)
+        self.display_canvas.configure(width=1000, height=1000) # temporary sizing 
         self.display_canvas.pack(expand=True, padx=10, pady=10)
         self.canvas_image = None  # Store reference to avoid garbage collection
 
@@ -136,11 +137,18 @@ class ReferenceGUI(ctk.CTk):
         except FileNotFoundError:
             raise Warning("Could not find GUI settings file. Using defaults.") 
 
-    def start_acquisition(self, spec: str = "focus"):
+    def start_acquisition(self, log_frames: bool = False):
         self.display_count = 0
 
+        # Over-ride default spec with settings from the GUI
+        spec = self.frame_specification.generate_spec()
+        if not log_frames:
+            # in focus mode, don't save frames and run indefinitely
+            spec.buffers_per_acquisition = float('inf')
+        #spec.nchannels = self.dirigo # TODO??
+
         # Create workers
-        self.acquisition = self.dirigo.acquisition_factory('frame', spec_name=spec)
+        self.acquisition = self.dirigo.acquisition_factory('frame', spec=spec)
         self.processor = self.dirigo.processor_factory(self.acquisition)
         self.display = self.dirigo.display_factory(self.processor)            
 
@@ -153,7 +161,7 @@ class ReferenceGUI(ctk.CTk):
         self.channels_control.link_display_worker(self.display)  
         self.display_canvas.add_acquisition_spec(self.acquisition.spec)
 
-        if spec == 'capture':
+        if log_frames:
             # Create logger worker, connect, and start
             self.logger = self.dirigo.logger_factory(self.processor)
             self.processor.add_subscriber(self.logger)
@@ -166,6 +174,9 @@ class ReferenceGUI(ctk.CTk):
 
     def stop_acquisition(self):
         self.acquisition.stop()
+        self.acquisition.join()
+        self.processor.join()
+        self.display.join()
         self.acquisition_control.stopped()
 
     def poll_queue(self):
