@@ -79,10 +79,10 @@ class AcquisitionControl(ctk.CTkFrame):
 
 
 class FrameSpecificationControl(ctk.CTkFrame):
-    def __init__(self, parent, spec_name = "capture"):
+    def __init__(self, parent, spec_name = "default"):
         super().__init__(parent)
 
-        spec:FrameAcquisitionSpec = FrameAcquisition.get_specification(spec_name)
+        spec:FrameAcquisitionSpec = FrameAcquisition.get_specification(spec_name) # TODO, load from previous session
         self._frame_width = spec.line_width
         self._frame_height = spec.frame_height
         self._pixel_width = spec.pixel_size
@@ -281,6 +281,7 @@ class FrameSpecificationControl(ctk.CTkFrame):
             bidirectional_scanning=(self.directions_var.get() == "Bidirectional"),
             line_width=self._frame_width,
             frame_height=self._frame_height,
+            pixel_rate="500 kHz", # TODO add to panel
             pixel_size=self._pixel_width,
             pixel_height=self._pixel_height,
             fill_fraction = self._fill_fraction,

@@ -2,6 +2,7 @@ import queue
 import time
 from pathlib import Path
 import toml
+import warnings
 
 from platformdirs import user_config_dir
 import customtkinter as ctk
@@ -135,7 +136,7 @@ class ReferenceGUI(ctk.CTk):
                 i += 1
 
         except FileNotFoundError:
-            raise Warning("Could not find GUI settings file. Using defaults.") 
+            warnings.warn("Could not find GUI settings file. Using defaults.", UserWarning)
 
     def start_acquisition(self, log_frames: bool = False):
         self.display_count = 0
@@ -254,6 +255,8 @@ class ReferenceGUI(ctk.CTk):
     
     def _save_gui_settings(self):
         config_dir = Path(user_config_dir("Dirigo-GUI", "Dirigo"))
+        config_dir.mkdir(parents=True, exist_ok=True)
+        
         settings = dict()
 
         # Light/Dark mode
