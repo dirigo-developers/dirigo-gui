@@ -79,7 +79,7 @@ class AcquisitionControl(ctk.CTkFrame):
 
 
 class FrameSpecificationControl(ctk.CTkFrame):
-    def __init__(self, parent, spec_name = "default"):
+    def __init__(self, parent, timing_indicator: 'TimingIndicator', spec_name = "default"):
         super().__init__(parent)
 
         spec: FrameAcquisitionSpec = FrameAcquisition.get_specification(spec_name) # TODO, load from previous session
@@ -90,6 +90,7 @@ class FrameSpecificationControl(ctk.CTkFrame):
         self._pixel_height = spec.pixel_height
         self._fill_fraction = spec.fill_fraction
         self._frames_per_acquisition = spec.buffers_per_acquisition
+        self._timing_indicator = timing_indicator
 
         font = ctk.CTkFont(size=14, weight='bold')
 
@@ -100,25 +101,13 @@ class FrameSpecificationControl(ctk.CTkFrame):
             values=["Bidirectional", "Unidirectional"],
             variable=self.directions_var
         )
-        self.directions.pack(padx=5, pady=5)
-
-        # Pixel rate (if applicable)
-        if self._pixel_rate:
-            pixel_rate_frame = ctk.CTkFrame(self, fg_color="transparent")
-            pixel_rate_label = ctk.CTkLabel(pixel_rate_frame, text="Pixel Rate", font=font)
-            pixel_rate_label.grid(row=0, column=0, sticky="w")
-            self.pixel_rate = ctk.CTkEntry(pixel_rate_frame, width=60)
-            self.pixel_rate.grid(row=0, column=1)
-            self.pixel_rate.insert(0, str(self._pixel_rate))
-            self.pixel_rate.bind("<Return>", lambda e: self.update_pixel_rate())
-            self.pixel_rate.bind("<FocusOut>", lambda e: self.update_pixel_rate())
-            pixel_rate_frame.pack(padx=5, pady=5)
+        self.directions.pack(padx=5, pady=10)
 
         # Frame size
         frame_size_frame = ctk.CTkFrame(self, fg_color="transparent")
         r = 0
 
-        frame_size_label = ctk.CTkLabel(frame_size_frame, text="Frame Size", font=font)
+        frame_size_label = ctk.CTkLabel(frame_size_frame, text="Frame Size:", font=font)
         frame_size_label.grid(row=r, columnspan=4, sticky="w")
         r += 1
 
@@ -156,7 +145,7 @@ class FrameSpecificationControl(ctk.CTkFrame):
         pixel_size_frame = ctk.CTkFrame(self, fg_color="transparent")
         r = 0
 
-        pixel_size_label = ctk.CTkLabel(pixel_size_frame, text="Pixel Size", font=font)
+        pixel_size_label = ctk.CTkLabel(pixel_size_frame, text="Pixel Size:", font=font)
         pixel_size_label.grid(row=r, columnspan=2, sticky="w")
         r += 1
 
@@ -187,39 +176,50 @@ class FrameSpecificationControl(ctk.CTkFrame):
             command=None
         )
         self.square_pixel.grid(row=r, columnspan=4, padx=5, pady=5, sticky="w")
-
         pixel_size_frame.pack(padx=5, pady=5)
-        
+
+        settings_grid_frame = ctk.CTkFrame(self, fg_color="transparent")
+        r = 0
+
+        # Pixel rate (if applicable)
+        if self._pixel_rate:
+            pixel_rate_label = ctk.CTkLabel(settings_grid_frame, text="Pixel Rate:", font=font)
+            pixel_rate_label.grid(row=r, column=0, padx=5, sticky="e")
+            self.pixel_rate = ctk.CTkEntry(settings_grid_frame, width=70)
+            self.pixel_rate.grid(row=r, pady=3, column=1, sticky='w')
+            self.pixel_rate.insert(0, str(self._pixel_rate))
+            self.pixel_rate.bind("<Return>", lambda e: self.update_pixel_rate())
+            self.pixel_rate.bind("<FocusOut>", lambda e: self.update_pixel_rate())
+            r += 1
+
         # fill fraction
-        fill_fraction_frame = ctk.CTkFrame(self, fg_color="transparent")
-        fill_fraction_label = ctk.CTkLabel(fill_fraction_frame, text="Fill Fraction")
-        fill_fraction_label.grid(row=0, column=0, padx=4)
-        self.fill_fraction = ctk.CTkEntry(fill_fraction_label, width=60)
+        fill_fraction_label = ctk.CTkLabel(settings_grid_frame, text="Fill Fraction:", font=font)
+        fill_fraction_label.grid(row=r, column=0, padx=5, sticky='e')
+        self.fill_fraction = ctk.CTkEntry(settings_grid_frame, width=70)
         self.fill_fraction.insert(0, str(self._fill_fraction))
-        self.fill_fraction.grid(row=0, column=1)
+        self.fill_fraction.grid(row=r, pady=3, column=1, sticky='w')
         self.fill_fraction.bind("<Return>", lambda e: self.update_fill_fraction())
         self.fill_fraction.bind("<FocusOut>", lambda e: self.update_fill_fraction())
-
-        fill_fraction_frame.pack(padx=5, pady=5)
+        r += 1
 
         # frames per acquisition
-        frames_per_acq_frame = ctk.CTkFrame(self, fg_color="transparent")
-        frames_per_acq_label = ctk.CTkLabel(frames_per_acq_frame, text="Frames to Capture")
-        frames_per_acq_label.grid(row=0, column=0, padx=4)
-        self.frames_per_acquisition = ctk.CTkEntry(frames_per_acq_frame, width=60)
+        frames_per_acq_label = ctk.CTkLabel(settings_grid_frame, text="Frames:", font=font)
+        frames_per_acq_label.grid(row=r, column=0, padx=5, sticky='e')
+        self.frames_per_acquisition = ctk.CTkEntry(settings_grid_frame, width=70)
         self.frames_per_acquisition.insert(0, str(self._frames_per_acquisition))
-        self.frames_per_acquisition.grid(row=0, column=1)
+        self.frames_per_acquisition.grid(row=r, pady=3, column=1, sticky='w')
         self.frames_per_acquisition.bind(
             "<Return>", lambda e: self.update_frames_per_acquisition()
         )
         self.frames_per_acquisition.bind(
             "<FocusOut>", lambda e: self.update_frames_per_acquisition()
         )
-
-        frames_per_acq_frame.pack(padx=5, pady=5)
+        r += 1
 
         # flyback periods
         pass
+
+        settings_grid_frame.pack(padx=0, pady=0, fill='x')
 
     def update_pixel_rate(self):
         try:
@@ -229,6 +229,8 @@ class FrameSpecificationControl(ctk.CTkFrame):
 
         self.pixel_rate.delete(0, ctk.END)
         self.pixel_rate.insert(0, str(self._pixel_rate))
+
+        self._timing_indicator.update(self.generate_spec())
 
     def update_frame_height(self):
         try:
@@ -245,6 +247,8 @@ class FrameSpecificationControl(ctk.CTkFrame):
             self.frame_width.delete(0, ctk.END)
             self.frame_width.insert(0, str(self._frame_height))
 
+        self._timing_indicator.update(self.generate_spec())
+
     def update_frame_width(self):
         try:
             self._frame_width = units.Position(self.frame_width.get())
@@ -259,6 +263,8 @@ class FrameSpecificationControl(ctk.CTkFrame):
             self._frame_height = self._frame_width
             self.frame_height.delete(0, ctk.END)
             self.frame_height.insert(0, str(self._frame_width))
+
+        self._timing_indicator.update(self.generate_spec())
 
     def update_pixel_height(self):
         try:
@@ -276,6 +282,8 @@ class FrameSpecificationControl(ctk.CTkFrame):
             self.pixel_width.delete(0, ctk.END)
             self.pixel_width.insert(0, str(self._pixel_height))
 
+        self._timing_indicator.update(self.generate_spec())
+
     def update_pixel_width(self):
         try:
             self._pixel_width = units.Position(self.pixel_width.get())
@@ -292,11 +300,23 @@ class FrameSpecificationControl(ctk.CTkFrame):
             self.pixel_height.delete(0, ctk.END)
             self.pixel_height.insert(0, str(self._pixel_width))
 
+        self._timing_indicator.update(self.generate_spec())
+
     def update_fill_fraction(self):
-        pass
+        new_ff = float(self.fill_fraction.get())
+        if not (0 < new_ff <= 1):
+            # revert
+            self.fill_fraction.delete(0, ctk.END)
+            self.fill_fraction.insert(0, str(self._fill_fraction))
+            return
+        self._fill_fraction = new_ff
+        self.fill_fraction.delete(0, ctk.END)
+        self.fill_fraction.insert(0, str(self._fill_fraction))
+
+        self._timing_indicator.update(self.generate_spec())
 
     def update_frames_per_acquisition(self):
-        pass
+        self._timing_indicator.update(self.generate_spec())
     
     def generate_spec(self) -> FrameAcquisitionSpec:
         return FrameAcquisitionSpec(
@@ -314,11 +334,41 @@ class FrameSpecificationControl(ctk.CTkFrame):
         )
     
 
+class TimingIndicator(ctk.CTkFrame):
+    def __init__(self, parent):
+        super().__init__(parent)
+
+        timing_label = ctk.CTkLabel(self, text="Timing", font=ctk.CTkFont(size=14, weight='bold'))
+        timing_label.grid(row=0, columnspan=2, padx=10, sticky="w")
+
+        line_rate_label = ctk.CTkLabel(self, text="Line Rate:")
+        line_rate_label.grid(row=1, column=0, padx=5, sticky="e")
+
+        self.line_rate = ctk.CTkLabel(self, text="")
+        self.line_rate.grid(row=1, column=1, padx=5, sticky="w")
+
+        line_rate_label = ctk.CTkLabel(self, text="Frame Rate:")
+        line_rate_label.grid(row=2, column=0, padx=5, sticky="e")
+
+        self.frame_rate = ctk.CTkLabel(self, text="")
+        self.frame_rate.grid(row=2, column=1, padx=5, sticky="w")
+
+    def update(self, spec: FrameAcquisitionSpec):
+        """Receive a FrameAcquisitionSpec and update accordingly"""
+        if spec.pixel_rate:
+            samples_per_line = round(spec.pixels_per_line / spec.fill_fraction)
+            self.line_rate.configure(
+                text=str(spec.pixel_rate / samples_per_line)
+            )
+            self.frame_rate.configure(
+                text=str(spec.pixel_rate / samples_per_line / spec.lines_per_frame)
+            )
 
 
-if __name__ == "__main__":
-    root = ctk.CTk()
-    sc = FrameSpecificationControl(root)
-    sc.pack()
-    root.mainloop()
+
+# if __name__ == "__main__":
+#     root = ctk.CTk()
+#     sc = FrameSpecificationControl(root)
+#     sc.pack()
+#     root.mainloop()
 
