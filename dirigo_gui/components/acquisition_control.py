@@ -82,7 +82,8 @@ class FrameSpecificationControl(ctk.CTkFrame):
     def __init__(self, parent, spec_name = "default"):
         super().__init__(parent)
 
-        spec:FrameAcquisitionSpec = FrameAcquisition.get_specification(spec_name) # TODO, load from previous session
+        spec: FrameAcquisitionSpec = FrameAcquisition.get_specification(spec_name) # TODO, load from previous session
+        self._pixel_rate = spec.pixel_rate
         self._frame_width = spec.line_width
         self._frame_height = spec.frame_height
         self._pixel_width = spec.pixel_size
@@ -100,6 +101,18 @@ class FrameSpecificationControl(ctk.CTkFrame):
             variable=self.directions_var
         )
         self.directions.pack(padx=5, pady=5)
+
+        # Pixel rate (if applicable)
+        if self._pixel_rate:
+            pixel_rate_frame = ctk.CTkFrame(self, fg_color="transparent")
+            pixel_rate_label = ctk.CTkLabel(pixel_rate_frame, text="Pixel Rate", font=font)
+            pixel_rate_label.grid(row=0, column=0, sticky="w")
+            self.pixel_rate = ctk.CTkEntry(pixel_rate_frame, width=60)
+            self.pixel_rate.grid(row=0, column=1)
+            self.pixel_rate.insert(0, str(self._pixel_rate))
+            self.pixel_rate.bind("<Return>", lambda e: self.update_pixel_rate())
+            self.pixel_rate.bind("<FocusOut>", lambda e: self.update_pixel_rate())
+            pixel_rate_frame.pack(padx=5, pady=5)
 
         # Frame size
         frame_size_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -208,6 +221,15 @@ class FrameSpecificationControl(ctk.CTkFrame):
         # flyback periods
         pass
 
+    def update_pixel_rate(self):
+        try:
+            self._pixel_rate = units.Frequency(self.pixel_rate.get())
+        except ValueError:
+            pass # probably something should happen instead
+
+        self.pixel_rate.delete(0, ctk.END)
+        self.pixel_rate.insert(0, str(self._pixel_rate))
+
     def update_frame_height(self):
         try:
             self._frame_height = units.Position(self.frame_height.get())
@@ -281,14 +303,14 @@ class FrameSpecificationControl(ctk.CTkFrame):
             bidirectional_scanning=(self.directions_var.get() == "Bidirectional"),
             line_width=self._frame_width,
             frame_height=self._frame_height,
-            pixel_rate="500 kHz", # TODO add to panel
+            pixel_rate=self._pixel_rate,
             pixel_size=self._pixel_width,
             pixel_height=self._pixel_height,
             fill_fraction = self._fill_fraction,
             buffers_per_acquisition=self._frames_per_acquisition,
             buffers_allocated=4, # TODO not hardcode
             digitizer_profile = "default",
-            flyback_periods=64 # TODO update this
+            flyback_periods=4 # TODO update this
         )
     
 
