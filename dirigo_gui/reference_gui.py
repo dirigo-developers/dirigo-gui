@@ -11,7 +11,6 @@ import numpy as np
 
 from dirigo.main import Dirigo
 from dirigo.sw_interfaces import Acquisition, Processor, Display
-from dirigo.hw_interfaces.stage import MultiAxisStage
 from dirigo.plugins.acquisitions import FrameAcquisitionSpec
 from dirigo_gui.components.channel_control import DisplayControl
 from dirigo_gui.components.logger_control import LoggerControl
@@ -114,6 +113,7 @@ class ReferenceGUI(ctk.CTk):
         self.display_canvas.configure(width=1000, height=1000) # temporary sizing 
         self.display_canvas.pack(expand=True, padx=10, pady=10)
         self.canvas_image = None  # Store reference to avoid garbage collection
+        self.tk_image = None
 
     def _restore_settings(self):
         config_dir = Path(user_config_dir("Dirigo-GUI", "Dirigo"))
@@ -144,13 +144,13 @@ class ReferenceGUI(ctk.CTk):
 
     def start_acquisition(self, log_frames: bool = False):
         self.display_count = 0
+        self.tk_image = None # resets the previous image if it exists
 
         # Over-ride default spec with settings from the GUI
         spec = self.frame_specification.generate_spec()
         if not log_frames:
             # in focus mode, don't save frames and run indefinitely
             spec.buffers_per_acquisition = float('inf')
-        #spec.nchannels = self.dirigo # TODO??
 
         # Create workers
         self.acquisition = self.dirigo.acquisition_factory('frame', spec=spec)
@@ -204,8 +204,8 @@ class ReferenceGUI(ctk.CTk):
         pil_img = Image.fromarray(image, mode="RGB")
 
         t1 = time.perf_counter()       
-        if not hasattr(self, 'tk_image'):
-            # Create the PhotoImage only once
+        if self.tk_image is None:
+            # Create the PhotoImage only once per acquisition 
             self.tk_image = ImageTk.PhotoImage(pil_img)
             self.canvas_image = self.display_canvas.create_image(0, 0, anchor="nw", image=self.tk_image)
         else:
