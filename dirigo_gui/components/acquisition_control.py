@@ -1,6 +1,7 @@
 import customtkinter as ctk
 
 from dirigo import units
+from dirigo.components.hardware import Hardware
 from dirigo.plugins.acquisitions import FrameAcquisitionSpec, FrameAcquisition
 
 
@@ -83,7 +84,8 @@ class FrameSpecificationControl(ctk.CTkFrame):
         super().__init__(parent)
 
         spec: FrameAcquisitionSpec = FrameAcquisition.get_specification(spec_name) # TODO, load from previous session
-        self._pixel_rate = spec.pixel_rate
+
+        self._pixel_rate = spec.pixel_rate if hasattr(spec, 'pixel_rate') else None
         self._frame_width = spec.line_width
         self._frame_height = spec.frame_height
         self._pixel_width = spec.pixel_size
@@ -95,11 +97,14 @@ class FrameSpecificationControl(ctk.CTkFrame):
         font = ctk.CTkFont(size=14, weight='bold')
 
         # Directions selector
-        self.directions_var = ctk.StringVar(value="Unidirectional")
+        self.directions_var = ctk.StringVar(
+            value="Bidirectional" if spec.bidirectional_scanning else "Unidirectional"
+        )
         self.directions = ctk.CTkSegmentedButton(
             self, 
             values=["Bidirectional", "Unidirectional"],
-            variable=self.directions_var
+            variable=self.directions_var,
+            command=lambda e: self.update_bidi()
         )
         self.directions.pack(padx=5, pady=10)
 
@@ -217,9 +222,11 @@ class FrameSpecificationControl(ctk.CTkFrame):
         r += 1
 
         # flyback periods
-        pass
 
         settings_grid_frame.pack(padx=0, pady=0, fill='x')
+
+    def update_bidi(self):
+        self._timing_indicator.update(self.generate_spec())
 
     def update_pixel_rate(self):
         try:
@@ -330,13 +337,14 @@ class FrameSpecificationControl(ctk.CTkFrame):
             buffers_per_acquisition=self._frames_per_acquisition,
             buffers_allocated=4, # TODO not hardcode
             digitizer_profile = "default",
-            flyback_periods=4 # TODO update this
+            flyback_periods=32 # TODO update this
         )
     
 
 class TimingIndicator(ctk.CTkFrame):
-    def __init__(self, parent):
+    def __init__(self, parent, hardware: Hardware):
         super().__init__(parent)
+        self._hw = hardware
 
         timing_label = ctk.CTkLabel(self, text="Timing", font=ctk.CTkFont(size=14, weight='bold'))
         timing_label.grid(row=0, columnspan=2, padx=10, sticky="w")
@@ -363,6 +371,15 @@ class TimingIndicator(ctk.CTkFrame):
             self.frame_rate.configure(
                 text=str(spec.pixel_rate / samples_per_line / spec.lines_per_frame)
             )
+        
+        else:
+            if spec.bidirectional_scanning:
+                line_rate = 2 * self._hw.fast_raster_scanner.frequency
+            else:
+                line_rate = self._hw.fast_raster_scanner.frequency
+
+            self.line_rate.configure(text=str(line_rate))
+            self.frame_rate.configure(text=str(line_rate/spec.lines_per_frame))
 
 
 

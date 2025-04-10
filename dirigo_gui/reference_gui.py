@@ -25,7 +25,7 @@ class LeftPanel(ctk.CTkFrame):
         self._start_callback = start_callback
         self._stop_callback = stop_callback
         self._toggle_theme_callback = toggle_theme_callback
-        self._stage = controller.hw.stage
+        self._hw = controller.hw
         self._objective_scanner = controller.hw.objective_scanner
         self._configure_ui()
 
@@ -34,11 +34,11 @@ class LeftPanel(ctk.CTkFrame):
         
         self.theme_switch = ctk.CTkSwitch(self, text="Toggle Mode", command=self._toggle_theme_callback)
         
-        self.timing_indicator = TimingIndicator(self)
+        self.timing_indicator = TimingIndicator(self, self._hw)
         self.frame_specification = FrameSpecificationControl(self, self.timing_indicator)
         self.timing_indicator.update(self.frame_specification.generate_spec())
 
-        self.stage_control = StageControl(self, self._stage, self._objective_scanner, fg_color="transparent")
+        self.stage_control = StageControl(self, self._hw.stage, self._objective_scanner, fg_color="transparent")
 
         self.acquisition_control.pack(pady=10, padx=10, fill="x")
         self.theme_switch.pack(pady=10, padx=10, fill="x")
