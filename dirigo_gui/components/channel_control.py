@@ -19,11 +19,13 @@ class SingleChannelFrame(ctk.CTkFrame):
         """Constructs a frame with channel display properties."""
         super().__init__(parent, corner_radius=10)
         self.index = channel_index
-        self._display_channel: DisplayChannel = None
+        self._display_channel: DisplayChannel = None # A display channel object is linked to this later
 
-        # Slider limits
-        self.slider_min = 0
-        self.slider_max = 2**16 - 1
+        # Slider limits -- set up a dummy acquisition/processor to return data range min/max 
+        acq = dirigo.acquisition_factory('frame')
+        proc = dirigo.processor_factory(acq)
+        self.slider_min = proc.data_range.min
+        self.slider_max = proc.data_range.max
 
         # Enable/Disable Checkbox
         self.enabled_var = ctk.BooleanVar(value=True)
@@ -277,9 +279,11 @@ class DisplayControl(ctk.CTkFrame):
         display_index = 0 # Display and Digitizer have slightly different indices--Display skips channels that are not enabled
         for channel in self.dirigo.hw.digitizer.channels:
             # Iterate over available digitizer channels
+            
+            channel_frame = self.channel_frames[channel.index] # This is an object maintained by the GUI
+
             if channel.enabled:
                 display_channel = display.display_channels[display_index] # This is an object under the Display worker
-                channel_frame = self.channel_frames[channel.index] # This is an object maintained by the GUI
 
                 # if digitizer channel is enabled (because the acquisition configured it to be enabled)
                 # then we want to associate display_channel (used by Display worker) with ChannelFrame
@@ -298,12 +302,12 @@ class DisplayControl(ctk.CTkFrame):
                 display_index += 1
             else:
                 # If the channel is not enabled on the digitizer, disable channel frame objects
-                self.channel_frames[channel.index].set_widgets_state(ctk.DISABLED)
+                channel_frame.set_widgets_state(ctk.DISABLED)
 
                 # Uncheck checkbox to show that channel is disabled
-                self.channel_frames[channel.index].enabled_var.set(False)
+                channel_frame.enabled_var.set(False)
 
-                self.channel_frames[channel.index]._display_channel = None
+                channel_frame._display_channel = None
 
         # Provide rolling average widget a reference to the display worker
         self.rolling_average_frame._display_worker = display
