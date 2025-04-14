@@ -85,7 +85,7 @@ class FrameSpecificationControl(ctk.CTkFrame):
 
         spec: FrameAcquisitionSpec = FrameAcquisition.get_specification(spec_name) # TODO, load from previous session
 
-        self._pixel_rate = spec.pixel_rate if hasattr(spec, 'pixel_rate') else None
+        self._pixel_time = spec.pixel_time if hasattr(spec, 'pixel_time') else None # aka dwell time
         self._frame_width = spec.line_width
         self._frame_height = spec.frame_height
         self._pixel_width = spec.pixel_size
@@ -210,15 +210,15 @@ class FrameSpecificationControl(ctk.CTkFrame):
         settings_grid_frame = ctk.CTkFrame(self, fg_color="transparent")
         r = 0
 
-        # Pixel rate (if applicable)
-        if self._pixel_rate:
-            pixel_rate_label = ctk.CTkLabel(settings_grid_frame, text="Pixel Rate:", font=font)
-            pixel_rate_label.grid(row=r, column=0, padx=5, sticky="e")
-            self.pixel_rate = ctk.CTkEntry(settings_grid_frame, width=70)
-            self.pixel_rate.grid(row=r, pady=3, column=1, sticky='w')
-            self.pixel_rate.insert(0, str(self._pixel_rate))
-            self.pixel_rate.bind("<Return>", lambda e: self.update_pixel_rate())
-            self.pixel_rate.bind("<FocusOut>", lambda e: self.update_pixel_rate())
+        # Pixel (dwell) time (if applicable)
+        if self._pixel_time:
+            pixel_time_label = ctk.CTkLabel(settings_grid_frame, text="Pixel Time:", font=font)
+            pixel_time_label.grid(row=r, column=0, padx=5, sticky="e")
+            self.pixel_time = ctk.CTkEntry(settings_grid_frame, width=70)
+            self.pixel_time.grid(row=r, pady=3, column=1, sticky='w')
+            self.pixel_time.insert(0, str(self._pixel_time))
+            self.pixel_time.bind("<Return>", lambda e: self.update_pixel_time())
+            self.pixel_time.bind("<FocusOut>", lambda e: self.update_pixel_time())
             r += 1
 
         # fill fraction
@@ -255,14 +255,14 @@ class FrameSpecificationControl(ctk.CTkFrame):
     def update_bidi(self):
         self._timing_indicator.update(self.generate_spec())
 
-    def update_pixel_rate(self):
+    def update_pixel_time(self):
         try:
-            self._pixel_rate = units.Frequency(self.pixel_rate.get())
+            self._pixel_time = units.Time(self.pixel_time.get())
         except ValueError:
             pass # probably something should happen instead
 
-        self.pixel_rate.delete(0, ctk.END)
-        self.pixel_rate.insert(0, str(self._pixel_rate))
+        self.pixel_time.delete(0, ctk.END)
+        self.pixel_time.insert(0, str(self._pixel_time))
 
         self._timing_indicator.update(self.generate_spec())
 
@@ -399,7 +399,7 @@ class FrameSpecificationControl(ctk.CTkFrame):
             bidirectional_scanning=(self.directions_var.get() == "Bidirectional"),
             line_width=self._frame_width,
             frame_height=self._frame_height,
-            pixel_rate=self._pixel_rate,
+            pixel_time=self._pixel_time,
             pixel_size=self._pixel_width,
             pixel_height=self._pixel_height,
             fill_fraction = self._fill_fraction,
@@ -432,13 +432,14 @@ class TimingIndicator(ctk.CTkFrame):
 
     def update(self, spec: FrameAcquisitionSpec):
         """Receive a FrameAcquisitionSpec and update accordingly"""
-        if spec.pixel_rate:
-            samples_per_line = round(spec.pixels_per_line / spec.fill_fraction)
+        if spec.pixel_time:
+            fast_period_time = spec.pixel_time * round(spec.pixels_per_line / spec.fill_fraction)
+            line_rate = units.Frequency(1 / fast_period_time)
             self.line_rate.configure(
-                text=str(spec.pixel_rate / samples_per_line)
+                text=str(line_rate)
             )
             self.frame_rate.configure(
-                text=str(spec.pixel_rate / samples_per_line / spec.lines_per_frame)
+                text=str(line_rate / spec.lines_per_frame)
             )
         
         else:
