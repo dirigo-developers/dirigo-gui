@@ -90,6 +90,8 @@ class FrameSpecificationControl(ctk.CTkFrame):
         self._frame_height = spec.frame_height
         self._pixel_width = spec.pixel_size
         self._pixel_height = spec.pixel_height
+        self._shape_width = 100
+        self._shape_height = 100
         self._fill_fraction = spec.fill_fraction
         self._frames_per_acquisition = spec.buffers_per_acquisition
         self._timing_indicator = timing_indicator
@@ -131,6 +133,27 @@ class FrameSpecificationControl(ctk.CTkFrame):
         self.frame_height.grid(row=r, column=3)
         self.frame_height.bind("<Return>", lambda e: self.update_frame_height())
         self.frame_height.bind("<FocusOut>", lambda e: self.update_frame_height())
+        r += 1
+
+        array_shape_label = ctk.CTkLabel(frame_size_frame, text="Array shape:", font=font)
+        array_shape_label.grid(row=r, columnspan=2, sticky="w")
+        r += 1
+
+        shape_width_label = ctk.CTkLabel(frame_size_frame, text="Width:")
+        shape_width_label.grid(row=r, column=0, padx=4)
+        self.shape_width = ctk.CTkEntry(frame_size_frame, width=60)
+        self.shape_width.insert(0, str(self._shape_width))
+        self.shape_width.grid(row=r, column=1)
+        self.shape_width.bind("<Return>", lambda e: self.update_shape_width())
+        self.shape_width.bind("<FocusOut>", lambda e: self.update_shape_width())
+
+        shape_height_label = ctk.CTkLabel(frame_size_frame, text="Height:")
+        shape_height_label.grid(row=r, column=2, padx=4)
+        self.shape_height = ctk.CTkEntry(frame_size_frame, width=60)
+        self.shape_height.insert(0, str(self._shape_height))
+        self.shape_height.grid(row=r, column=3)
+        self.shape_height.bind("<Return>", lambda e: self.update_shape_height())
+        self.shape_height.bind("<FocusOut>", lambda e: self.update_shape_height())
         r += 1
 
         self._square_frame_var = ctk.BooleanVar(value=True)
@@ -183,6 +206,7 @@ class FrameSpecificationControl(ctk.CTkFrame):
         self.square_pixel.grid(row=r, columnspan=4, padx=5, pady=5, sticky="w")
         pixel_size_frame.pack(padx=5, pady=5)
 
+        # Misc settings put in to orderly grid
         settings_grid_frame = ctk.CTkFrame(self, fg_color="transparent")
         r = 0
 
@@ -225,6 +249,9 @@ class FrameSpecificationControl(ctk.CTkFrame):
 
         settings_grid_frame.pack(padx=0, pady=0, fill='x')
 
+        # update some calculated settings
+        self.update_array_shape()
+
     def update_bidi(self):
         self._timing_indicator.update(self.generate_spec())
 
@@ -254,6 +281,7 @@ class FrameSpecificationControl(ctk.CTkFrame):
             self.frame_width.delete(0, ctk.END)
             self.frame_width.insert(0, str(self._frame_height))
 
+        self.update_array_shape()
         self._timing_indicator.update(self.generate_spec())
 
     def update_frame_width(self):
@@ -271,7 +299,38 @@ class FrameSpecificationControl(ctk.CTkFrame):
             self.frame_height.delete(0, ctk.END)
             self.frame_height.insert(0, str(self._frame_width))
 
+        self.update_array_shape()
         self._timing_indicator.update(self.generate_spec())
+
+    def update_shape_width(self):
+        # When changing the image array shape (ie resolution)
+        try:
+            self._shape_width = int(self.shape_width.get())
+        except:
+            self.shape_width.delete(0, ctk.END)
+            self.shape_width.insert(0, str(self._shape_width))
+            return
+
+        # adjust pixel width
+        self._pixel_width = self._frame_width / self._shape_width
+        self.pixel_width.delete(0, ctk.END)
+        self.pixel_width.insert(0, str(self._pixel_width))
+        self.update_pixel_width()
+
+    def update_shape_height(self):
+        # When changing the image array shape (ie resolution)
+        try:
+            self._shape_height = int(self.shape_height.get())
+        except:
+            self.shape_height.delete(0, ctk.END)
+            self.shape_height.insert(0, str(self._shape_height))
+            return
+
+        # adjust pixel height
+        self._pixel_height = self._frame_height / self._shape_height
+        self.pixel_height.delete(0, ctk.END)
+        self.pixel_height.insert(0, str(self._pixel_height))
+        self.update_pixel_height()
 
     def update_pixel_height(self):
         try:
@@ -289,6 +348,7 @@ class FrameSpecificationControl(ctk.CTkFrame):
             self.pixel_width.delete(0, ctk.END)
             self.pixel_width.insert(0, str(self._pixel_height))
 
+        self.update_array_shape()
         self._timing_indicator.update(self.generate_spec())
 
     def update_pixel_width(self):
@@ -307,6 +367,7 @@ class FrameSpecificationControl(ctk.CTkFrame):
             self.pixel_height.delete(0, ctk.END)
             self.pixel_height.insert(0, str(self._pixel_width))
 
+        self.update_array_shape()
         self._timing_indicator.update(self.generate_spec())
 
     def update_fill_fraction(self):
@@ -324,6 +385,14 @@ class FrameSpecificationControl(ctk.CTkFrame):
 
     def update_frames_per_acquisition(self):
         self._timing_indicator.update(self.generate_spec())
+
+    def update_array_shape(self):
+        self._shape_width = round(self._frame_width / self._pixel_width)
+        self._shape_height = round(self._frame_height / self._pixel_height)
+        self.shape_width.delete(0, ctk.END)
+        self.shape_width.insert(0, str(self._shape_width))
+        self.shape_height.delete(0, ctk.END)
+        self.shape_height.insert(0, str(self._shape_height))
     
     def generate_spec(self) -> FrameAcquisitionSpec:
         return FrameAcquisitionSpec(
@@ -381,11 +450,4 @@ class TimingIndicator(ctk.CTkFrame):
             self.line_rate.configure(text=str(line_rate))
             self.frame_rate.configure(text=str(line_rate/spec.lines_per_frame))
 
-
-
-# if __name__ == "__main__":
-#     root = ctk.CTk()
-#     sc = FrameSpecificationControl(root)
-#     sc.pack()
-#     root.mainloop()
 
