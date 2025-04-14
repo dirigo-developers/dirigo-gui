@@ -83,12 +83,19 @@ class StageControl(ctk.CTkFrame):
         self._stage = stage
         self._objective_scanner = objective_scanner
         self._is_pressed = False
+        
+        font = ctk.CTkFont(size=14, weight='bold')
+        stage_label = ctk.CTkLabel(self, text="Stage", font=font, anchor="w")
+        stage_label.pack(fill="x", padx=10, pady=1)
 
-        self.xy = XYControl(self, fg_color="transparent")
+        buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.xy = XYControl(buttons_frame, fg_color="transparent")
         self.xy.pack(side=ctk.LEFT, expand=True, fill="x", padx=5, pady=5)
 
-        self.z = ZControl(self, fg_color="transparent")
+        self.z = ZControl(buttons_frame, fg_color="transparent")
         self.z.pack(side=ctk.RIGHT, fill="x", padx=5, pady=5)
+
+        buttons_frame.pack(fill="x", padx=5, pady=3)
 
     def on_press(self, direction: str, velocity: units.Velocity):
         """Initiates constant velocity movement"""
@@ -112,16 +119,3 @@ class StageControl(ctk.CTkFrame):
         self._stage.y.stop()
         self._objective_scanner.stop()
 
-
-
-if __name__ == "__main__":
-    ctk.set_appearance_mode("System")
-    ctk.set_default_color_theme("blue")
-
-    root = ctk.CTk()
-    root.title("Stage Jog Controls Demo")
-
-    stage_jog_controls = StageControl(root, None)
-    stage_jog_controls.pack(expand=True, fill="x", padx=20, pady=20)
-
-    root.mainloop()

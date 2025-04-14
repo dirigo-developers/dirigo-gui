@@ -38,13 +38,18 @@ class LeftPanel(ctk.CTkFrame):
         self.frame_specification = FrameSpecificationControl(self, self.timing_indicator)
         self.timing_indicator.update(self.frame_specification.generate_spec())
 
-        self.stage_control = StageControl(self, self._hw.stage, self._objective_scanner, fg_color="transparent")
+        self.stage_control = StageControl(
+            self, 
+            self._hw.stage, 
+            self._objective_scanner, 
+        )
 
         self.acquisition_control.pack(pady=10, padx=10, fill="x")
         self.theme_switch.pack(pady=10, padx=10, fill="x")
         self.frame_specification.pack(pady=10, padx=10, fill="x")
         self.timing_indicator.pack(pady=10, padx=10, fill="x")
-        self.stage_control.pack(side=ctk.BOTTOM, fill="x", padx=10)
+        if self._hw.stage:
+            self.stage_control.pack(side=ctk.BOTTOM, fill="x", padx=10, pady=5)
 
 
 class RightPanel(ctk.CTkFrame):
