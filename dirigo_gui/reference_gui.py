@@ -20,19 +20,17 @@ from dirigo_gui.components.stage_control import StageControl
 
 
 class LeftPanel(ctk.CTkFrame):
-    def __init__(self, parent, controller: Dirigo, start_callback, stop_callback, toggle_theme_callback):
+    def __init__(self, parent, controller: Dirigo, start_callback, stop_callback):
         super().__init__(parent, width=200, corner_radius=0)
         self._start_callback = start_callback
         self._stop_callback = stop_callback
-        self._toggle_theme_callback = toggle_theme_callback
+        
         self._hw = controller.hw
         self._objective_scanner = controller.hw.objective_scanner
         self._configure_ui()
 
     def _configure_ui(self):
         self.acquisition_control = AcquisitionControl(self, self._start_callback, self._stop_callback)
-        
-        self.theme_switch = ctk.CTkSwitch(self, text="Toggle Mode", command=self._toggle_theme_callback)
         
         self.timing_indicator = TimingIndicator(self, self._hw)
         self.frame_specification = FrameSpecificationControl(self, self.timing_indicator)
@@ -45,7 +43,7 @@ class LeftPanel(ctk.CTkFrame):
         )
 
         self.acquisition_control.pack(pady=10, padx=10, fill="x")
-        self.theme_switch.pack(pady=10, padx=10, fill="x")
+        
         self.frame_specification.pack(pady=10, padx=10, fill="x")
         self.timing_indicator.pack(pady=10, padx=10, fill="x")
         if self._hw.stage:
@@ -54,14 +52,19 @@ class LeftPanel(ctk.CTkFrame):
 
 
 class RightPanel(ctk.CTkFrame):
-    def __init__(self, parent, dirigo: Dirigo):
+    def __init__(self, parent, controller: Dirigo, toggle_theme_callback):
         super().__init__(parent, width=200, corner_radius=0)
+
+        self._toggle_theme_callback = toggle_theme_callback
         
-        self.display_control = DisplayControl(self, dirigo)
+        self.display_control = DisplayControl(self, controller)
         self.display_control.pack(padx=10, pady=10, fill="x")
 
         self.logger_control = LoggerControl(self)
-        self.logger_control.pack()
+        self.logger_control.pack(padx=10, pady=10, fill="x")
+
+        self.theme_switch = ctk.CTkSwitch(self, text="Color Mode: ", command=self._toggle_theme_callback)
+        self.theme_switch.pack(side=ctk.BOTTOM, pady=10, padx=10, fill="x")
 
 
 class DisplayCanvas(ctk.CTkCanvas):
@@ -99,18 +102,21 @@ class ReferenceGUI(ctk.CTk):
     def _configure_ui(self):
         # Need: peek at acqspec
         self.left_panel = LeftPanel(
-            self,
+            parent=self,
             controller=self.dirigo,
             start_callback=self.start_acquisition,
             stop_callback=self.stop_acquisition,
-            toggle_theme_callback=self.toggle_mode,
         )
         self.acquisition_control = self.left_panel.acquisition_control # pass refs up to the parent GUI for easier access
         self.frame_specification = self.left_panel.frame_specification
         self.stage_control = self.left_panel.stage_control
         self.left_panel.pack(side=ctk.LEFT, fill=ctk.Y)
 
-        self.right_panel = RightPanel(self, self.dirigo)
+        self.right_panel = RightPanel(
+            parent=self, 
+            controller=self.dirigo,
+            toggle_theme_callback=self.toggle_mode
+        )
         self.display_control = self.right_panel.display_control 
         self.logger_control = self.right_panel.logger_control
         self.right_panel.pack(side=ctk.RIGHT, fill=ctk.Y)
@@ -130,9 +136,9 @@ class ReferenceGUI(ctk.CTk):
             # Populate GUI
 
             if settings["window_color_mode"] == "Dark":
-                self.left_panel.theme_switch.select()
+                self.right_panel.theme_switch.select()
             else:
-                self.left_panel.theme_switch.deselect()
+                self.right_panel.theme_switch.deselect()
             ctk.set_appearance_mode(settings["window_color_mode"])
 
             i = 0
@@ -273,7 +279,7 @@ class ReferenceGUI(ctk.CTk):
         settings = dict()
 
         # Light/Dark mode
-        mode = "Dark" if self.left_panel.theme_switch.get() else "Light"
+        mode = "Dark" if self.right_panel.theme_switch.get() else "Light"
         settings["window_color_mode"] = mode
 
         # Channel controls

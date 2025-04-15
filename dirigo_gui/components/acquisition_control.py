@@ -98,6 +98,10 @@ class FrameSpecificationControl(ctk.CTkFrame):
 
         font = ctk.CTkFont(size=14, weight='bold')
 
+        # Title
+        title = ctk.CTkLabel(self, text="Frame Specification", font=ctk.CTkFont(size=16, weight='bold'), anchor="w")
+        title.pack(padx=5, pady=5, fill="x")
+
         # Directions selector
         self.directions_var = ctk.StringVar(
             value="Bidirectional" if spec.bidirectional_scanning else "Unidirectional"
@@ -108,7 +112,7 @@ class FrameSpecificationControl(ctk.CTkFrame):
             variable=self.directions_var,
             command=lambda e: self.update_bidi()
         )
-        self.directions.pack(padx=5, pady=10)
+        self.directions.pack(padx=5, pady=2)
 
         # Frame size
         frame_size_frame = ctk.CTkFrame(self, fg_color="transparent")
