@@ -216,40 +216,6 @@ class SingleChannelFrame(ctk.CTkFrame):
         self.max_entry.configure(state=new_state)
 
 
-class FrameAverageWidget(ctk.CTkFrame):
-    def __init__(self, parent, initial_value=1, **kwargs):
-        super().__init__(parent, **kwargs)
-
-        self._value = initial_value
-        self._display_worker: Display = None  # Placeholder for the display worker, if needed.
-
-        # Label
-        self.label = ctk.CTkLabel(self, text="Rolling Average: (Frames)")
-        self.label.pack(side="left", padx=5)
-
-        # Entry
-        self.entry = ctk.CTkEntry(self, width=50, justify="center")
-        self.entry.insert(0, str(initial_value))
-        self.entry.pack(side="left", padx=5)
-
-        # Bind events
-        self.entry.bind("<Return>", self.validate_input)  # Enter key
-        self.entry.bind("<FocusOut>", self.validate_input)  # Focus lost
-
-    def validate_input(self, event=None):
-        """If input is valid, sets setting in Display worker."""
-        value = int(self.entry.get())
-        
-        if 1 <= value < 100:
-            self._value = value
-            if self._display_worker:
-                # if display worker reference is not None, then set it
-                self._display_worker.n_frame_average = value
-
-        self.entry.delete(0, "end")
-        self.entry.insert(0, str(self._value)) 
-
-
 class DisplayControl(ctk.CTkFrame): 
     def __init__(self, parent, dirigo:Dirigo, title: str = "Display"):
         """Set up panel with controls for N channels"""
@@ -275,20 +241,25 @@ class DisplayControl(ctk.CTkFrame):
         r = 0
 
         # Display gamma
-        gamma_label = ctk.CTkLabel(settings_grid_frame, text="Display gamma:", font=ctk.CTkFont(size=14, weight="bold"))
+        gamma_label = ctk.CTkLabel(settings_grid_frame, text="Display Gamma:", font=ctk.CTkFont(size=14, weight="bold"))
         gamma_label.grid(row=r, column=0, padx=5, sticky="e")
         self.gamma = ctk.CTkEntry(settings_grid_frame, width=70)
         self.gamma.grid(row=r, pady=3, column=1, sticky='w')
-        self.gamma.insert(0, str(1.0)) # TODO, get previous value
+        self.gamma.insert(0, str(1.0)) # This will be overwritten with saved setting, if available
         self.gamma.bind("<Return>", lambda e: self.update_gamma())
         self.gamma.bind("<FocusOut>", lambda e: self.update_gamma())
         r += 1
 
-        settings_grid_frame.pack()
-        
-        # Make rolling frame average control
-        self.rolling_average_frame = FrameAverageWidget(self)
-        self.rolling_average_frame.pack()
+        average_label = ctk.CTkLabel(settings_grid_frame, text="Frames Averaged:", font=ctk.CTkFont(size=14, weight="bold"))
+        average_label.grid(row=r, column=0, padx=5, sticky="e")
+        self.average = ctk.CTkEntry(settings_grid_frame, width=70)
+        self.average.grid(row=r, pady=3, column=1, sticky='w')
+        self.average.insert(0, str(1)) 
+        self.average.bind("<Return>", lambda e: self.update_average())
+        self.average.bind("<FocusOut>", lambda e: self.update_average())
+        r += 1
+
+        settings_grid_frame.pack(fill="x", anchor='w')
 
     def update_gamma(self):
         if self._display_worker:
@@ -310,6 +281,29 @@ class DisplayControl(ctk.CTkFrame):
             except:
                 self.gamma.delete(0, ctk.END)
                 self.gamma.insert(0, str(1.0))
+
+    def update_average(self):
+        if self._display_worker:
+            try:
+                value = int(self.average.get())
+                if not (0 < value < 100):
+                    raise ValueError
+                self._display_worker.n_frame_average = value
+            except:
+                pass
+            self.average.delete(0, ctk.END)
+            self.average.insert(0, str(self._display_worker.n_frame_average))
+        else:
+            # If no display worker has been linked, we need to validate the value here
+            try:
+                value = int(self.average.get())
+                if not (0 < value < 100):
+                    raise ValueError
+                self.average.delete(0, ctk.END)
+                self.average.insert(0, str(value))
+            except:
+                self.average.delete(0, ctk.END)
+                self.average.insert(0, str(1))
             
 
     def link_display_worker(self, display: Display):
@@ -349,9 +343,7 @@ class DisplayControl(ctk.CTkFrame):
 
                 channel_frame._display_channel = None
 
+        # Pass misc Display settings to Display worker
         display.gamma = float(self.gamma.get())
-
-        # Provide rolling average widget a reference to the display worker
-        self.rolling_average_frame._display_worker = display
-        display.n_frame_average = self.rolling_average_frame._value
+        display.n_frame_average = int(self.average.get())
                

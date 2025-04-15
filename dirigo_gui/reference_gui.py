@@ -12,7 +12,7 @@ import numpy as np
 from dirigo.main import Dirigo
 from dirigo.sw_interfaces import Acquisition, Processor, Display
 from dirigo.plugins.acquisitions import FrameAcquisitionSpec
-from dirigo_gui.components.channel_control import DisplayControl
+from dirigo_gui.components.display_control import DisplayControl
 from dirigo_gui.components.logger_control import LoggerControl
 from dirigo_gui.components.acquisition_control import AcquisitionControl, FrameSpecificationControl, TimingIndicator
 from dirigo_gui.components.stage_control import StageControl
@@ -111,7 +111,7 @@ class ReferenceGUI(ctk.CTk):
         self.left_panel.pack(side=ctk.LEFT, fill=ctk.Y)
 
         self.right_panel = RightPanel(self, self.dirigo)
-        self.channels_control = self.right_panel.display_control 
+        self.display_control = self.right_panel.display_control 
         self.logger_control = self.right_panel.logger_control
         self.right_panel.pack(side=ctk.RIGHT, fill=ctk.Y)
 
@@ -138,15 +138,15 @@ class ReferenceGUI(ctk.CTk):
             i = 0
             while f"channel_{i}" in settings:
                 channel_settings = settings[f"channel_{i}"]
-                channel_frame = self.channels_control.channel_frames[i]
+                channel_frame = self.display_control.channel_frames[i]
                 channel_frame.enabled = channel_settings["enabled"]
                 channel_frame.color_vector_name = channel_settings["color_vector"]
                 channel_frame.min = channel_settings["display_min"]
                 channel_frame.max = channel_settings["display_max"]
                 i += 1
 
-            self.channels_control.gamma.delete(0, ctk.END)
-            self.channels_control.gamma.insert(0, str(float(settings["gamma"])))
+            self.display_control.gamma.delete(0, ctk.END)
+            self.display_control.gamma.insert(0, str(float(settings["gamma"])))
 
         except FileNotFoundError:
             warnings.warn("Could not find GUI settings file. Using defaults.", UserWarning)
@@ -172,7 +172,7 @@ class ReferenceGUI(ctk.CTk):
         self.display.add_subscriber(self)
 
         # Link workers to GUI control elements
-        self.channels_control.link_display_worker(self.display)  
+        self.display_control.link_display_worker(self.display)  
         self.display_canvas.add_acquisition_spec(self.acquisition.spec)
 
         if log_frames:
@@ -277,7 +277,7 @@ class ReferenceGUI(ctk.CTk):
         settings["window_color_mode"] = mode
 
         # Channel controls
-        for channel_frame in self.channels_control.channel_frames:
+        for channel_frame in self.display_control.channel_frames:
             channel_settings = dict()
             channel_settings["enabled"] = channel_frame.enabled
             channel_settings["color_vector"] = channel_frame.color_vector_var.get() # Cyan, Gray, etc
@@ -287,7 +287,7 @@ class ReferenceGUI(ctk.CTk):
             settings[f"channel_{channel_frame.index}"] = channel_settings
 
         # Other display settings
-        settings[f"gamma"] = self.channels_control.gamma.get()
+        settings[f"gamma"] = self.display_control.gamma.get()
 
         with open(config_dir / "settings.toml", "w") as file:
             toml.dump(settings, file)

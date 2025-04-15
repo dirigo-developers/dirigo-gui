@@ -135,7 +135,7 @@ class FrameSpecificationControl(ctk.CTkFrame):
         self.frame_height.bind("<FocusOut>", lambda e: self.update_frame_height())
         r += 1
 
-        array_shape_label = ctk.CTkLabel(frame_size_frame, text="Array shape:", font=font)
+        array_shape_label = ctk.CTkLabel(frame_size_frame, text="Array Shape:", font=font)
         array_shape_label.grid(row=r, columnspan=2, sticky="w")
         r += 1
 
