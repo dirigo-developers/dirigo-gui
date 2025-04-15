@@ -256,6 +256,7 @@ class DisplayControl(ctk.CTkFrame):
         #super().__init__(parent, fg_color="transparent")
         super().__init__(parent)
         self.dirigo = dirigo
+        self._display_worker: Display = None
 
         # Make title label
         title_label = ctk.CTkLabel(self, text=title, font=ctk.CTkFont(size=16, weight="bold"))
@@ -290,13 +291,26 @@ class DisplayControl(ctk.CTkFrame):
         self.rolling_average_frame.pack()
 
     def update_gamma(self):
-        try:
-            self._display_worker.gamma = float(self.gamma.get())
-        except:
-            pass
-        self.gamma.delete(0, ctk.END)
-        self.gamma.insert(0, str(self._display_worker.gamma))
-        self._display_worker.update_display()
+        if self._display_worker:
+            try:
+                self._display_worker.gamma = float(self.gamma.get())
+            except:
+                pass
+            self.gamma.delete(0, ctk.END)
+            self.gamma.insert(0, str(self._display_worker.gamma))
+            self._display_worker.update_display()
+        else:
+            # If no display worker has been linked, we need to validate the value here
+            try:
+                new_gamma = float(self.gamma.get())
+                if not (0 < new_gamma <= 10):
+                    raise ValueError
+                self.gamma.delete(0, ctk.END)
+                self.gamma.insert(0, str(new_gamma))
+            except:
+                self.gamma.delete(0, ctk.END)
+                self.gamma.insert(0, str(1.0))
+            
 
     def link_display_worker(self, display: Display):
         """Links GUI properties to the dynamically generated Display worker."""

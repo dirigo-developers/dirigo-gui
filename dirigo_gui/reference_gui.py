@@ -145,6 +145,9 @@ class ReferenceGUI(ctk.CTk):
                 channel_frame.max = channel_settings["display_max"]
                 i += 1
 
+            self.channels_control.gamma.delete(0, ctk.END)
+            self.channels_control.gamma.insert(0, str(float(settings["gamma"])))
+
         except FileNotFoundError:
             warnings.warn("Could not find GUI settings file. Using defaults.", UserWarning)
 
@@ -282,6 +285,9 @@ class ReferenceGUI(ctk.CTk):
             channel_settings["display_max"] = channel_frame.max
             
             settings[f"channel_{channel_frame.index}"] = channel_settings
+
+        # Other display settings
+        settings[f"gamma"] = self.channels_control.gamma.get()
 
         with open(config_dir / "settings.toml", "w") as file:
             toml.dump(settings, file)
