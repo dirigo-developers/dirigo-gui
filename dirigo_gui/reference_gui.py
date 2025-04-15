@@ -49,6 +49,7 @@ class LeftPanel(ctk.CTkFrame):
         self.frame_specification.pack(pady=10, padx=10, fill="x")
         self.timing_indicator.pack(pady=10, padx=10, fill="x")
         if self._hw.stage:
+            # Hide display of stage controls if does not exist
             self.stage_control.pack(side=ctk.BOTTOM, fill="x", padx=10, pady=5)
 
 
@@ -57,7 +58,7 @@ class RightPanel(ctk.CTkFrame):
         super().__init__(parent, width=200, corner_radius=0)
         
         self.display_control = DisplayControl(self, dirigo)
-        self.display_control.pack()
+        self.display_control.pack(padx=10, pady=10, fill="x")
 
         self.logger_control = LoggerControl(self)
         self.logger_control.pack()

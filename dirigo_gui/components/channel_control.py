@@ -17,7 +17,7 @@ class SingleChannelFrame(ctk.CTkFrame):
     """
     def __init__(self, parent, dirigo: Dirigo, channel_index: int):
         """Constructs a frame with channel display properties."""
-        super().__init__(parent, corner_radius=10)
+        super().__init__(parent, corner_radius=10, fg_color="transparent")
         self.index = channel_index
         self._display_channel: DisplayChannel = None # A display channel object is linked to this later
 
@@ -251,30 +251,56 @@ class FrameAverageWidget(ctk.CTkFrame):
 
 
 class DisplayControl(ctk.CTkFrame): 
-    def __init__(self, parent, dirigo:Dirigo, title: str = "Channel Control"):
+    def __init__(self, parent, dirigo:Dirigo, title: str = "Display"):
         """Set up panel with controls for N channels"""
-        super().__init__(parent, fg_color="transparent")
+        #super().__init__(parent, fg_color="transparent")
+        super().__init__(parent)
         self.dirigo = dirigo
 
         # Make title label
-        font = ctk.CTkFont(size=18, weight="bold")
-        title_label = ctk.CTkLabel(self, text=title, font=font)
-        title_label.pack(anchor="nw", pady=(10,0), padx=15)
+        title_label = ctk.CTkLabel(self, text=title, font=ctk.CTkFont(size=16, weight="bold"))
+        title_label.pack(anchor="nw", pady=(10,0), padx=10)
 
         # Make N SingleChannelFrames
         self.channel_frames: list[SingleChannelFrame] = []
         for i in range(self.dirigo.hw.nchannels_present):
             channel_frame = SingleChannelFrame(self, self.dirigo, i)
-            channel_frame.pack(fill="y", pady=5, padx=10, anchor="n")
+            channel_frame.pack(fill="y", pady=2, padx=2, anchor="n")
             self.channel_frames.append(channel_frame)  # Save reference to each ChannelFrame
 
+        # Make grid for other settings
+        # Misc settings put in to orderly grid
+        settings_grid_frame = ctk.CTkFrame(self, fg_color="transparent")
+        r = 0
+
+        # Display gamma
+        gamma_label = ctk.CTkLabel(settings_grid_frame, text="Display gamma:", font=ctk.CTkFont(size=14, weight="bold"))
+        gamma_label.grid(row=r, column=0, padx=5, sticky="e")
+        self.gamma = ctk.CTkEntry(settings_grid_frame, width=70)
+        self.gamma.grid(row=r, pady=3, column=1, sticky='w')
+        self.gamma.insert(0, str(1.0)) # TODO, get previous value
+        self.gamma.bind("<Return>", lambda e: self.update_gamma())
+        self.gamma.bind("<FocusOut>", lambda e: self.update_gamma())
+        r += 1
+
+        settings_grid_frame.pack()
+        
         # Make rolling frame average control
         self.rolling_average_frame = FrameAverageWidget(self)
         self.rolling_average_frame.pack()
 
+    def update_gamma(self):
+        try:
+            self._display_worker.gamma = float(self.gamma.get())
+        except:
+            pass
+        self.gamma.delete(0, ctk.END)
+        self.gamma.insert(0, str(self._display_worker.gamma))
+        self._display_worker.update_display()
 
     def link_display_worker(self, display: Display):
         """Links GUI properties to the dynamically generated Display worker."""
+        self._display_worker = display
         
         display_index = 0 # Display and Digitizer have slightly different indices--Display skips channels that are not enabled
         for channel in self.dirigo.hw.digitizer.channels:
@@ -308,6 +334,8 @@ class DisplayControl(ctk.CTkFrame):
                 channel_frame.enabled_var.set(False)
 
                 channel_frame._display_channel = None
+
+        display.gamma = float(self.gamma.get())
 
         # Provide rolling average widget a reference to the display worker
         self.rolling_average_frame._display_worker = display
