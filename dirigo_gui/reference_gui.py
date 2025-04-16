@@ -14,7 +14,10 @@ from dirigo.sw_interfaces import Acquisition, Processor, Display
 from dirigo.plugins.acquisitions import FrameAcquisitionSpec
 from dirigo_gui.components.display_control import DisplayControl
 from dirigo_gui.components.logger_control import LoggerControl
-from dirigo_gui.components.acquisition_control import AcquisitionControl, FrameSpecificationControl, TimingIndicator
+from dirigo_gui.components.acquisition_control import (
+    AcquisitionControl, FrameSpecificationControl, TimingIndicator,
+    StackSpecificationControl
+)
 from dirigo_gui.components.stage_control import StageControl
 
 
@@ -34,6 +37,7 @@ class LeftPanel(ctk.CTkFrame):
         
         self.timing_indicator = TimingIndicator(self, self._hw)
         self.frame_specification = FrameSpecificationControl(self, self.timing_indicator)
+        self.stack_specification = StackSpecificationControl(self, self.frame_specification)
         self.timing_indicator.update(self.frame_specification.generate_spec())
 
         self.stage_control = StageControl(
@@ -45,9 +49,10 @@ class LeftPanel(ctk.CTkFrame):
         self.acquisition_control.pack(pady=10, padx=10, fill="x")
         
         self.frame_specification.pack(pady=10, padx=10, fill="x")
+        if self._hw.objective_scanner:
+            self.stack_specification.pack(pady=10, padx=10, fill="x")
         self.timing_indicator.pack(pady=10, padx=10, fill="x")
         if self._hw.stage:
-            # Hide display of stage controls if does not exist
             self.stage_control.pack(side=ctk.BOTTOM, fill="x", padx=10, pady=5)
 
 
@@ -109,6 +114,7 @@ class ReferenceGUI(ctk.CTk):
         )
         self.acquisition_control = self.left_panel.acquisition_control # pass refs up to the parent GUI for easier access
         self.frame_specification = self.left_panel.frame_specification
+        self.stack_specification = self.left_panel.stack_specification
         self.stage_control = self.left_panel.stage_control
         self.left_panel.pack(side=ctk.LEFT, fill=ctk.Y)
 
@@ -157,18 +163,23 @@ class ReferenceGUI(ctk.CTk):
         except FileNotFoundError:
             warnings.warn("Could not find GUI settings file. Using defaults.", UserWarning)
 
-    def start_acquisition(self, log_frames: bool = False):
+    def start_acquisition(self, log_frames: bool = False, acq_type: str = 'frame'):
+        if acq_type not in {'frame', 'stack'}:
+            raise ValueError("Unsupported Acquistion type: {acq_type}")
         self.display_count = 0
         self.tk_image = None # resets the previous image if it exists
 
         # Over-ride default spec with settings from the GUI
-        spec = self.frame_specification.generate_spec()
+        if acq_type == 'frame':
+            spec = self.frame_specification.generate_spec()
+        elif acq_type == 'stack':
+            spec = self.stack_specification.generate_spec()
         if not log_frames:
             # in focus mode, don't save frames and run indefinitely
             spec.buffers_per_acquisition = float('inf')
 
         # Create workers
-        self.acquisition = self.dirigo.acquisition_factory('frame', spec=spec)
+        self.acquisition = self.dirigo.acquisition_factory(acq_type, spec=spec)
         self.processor = self.dirigo.processor_factory(self.acquisition)
         self.display = self.dirigo.display_factory(self.processor)            
 

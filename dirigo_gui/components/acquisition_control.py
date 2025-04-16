@@ -2,7 +2,10 @@ import customtkinter as ctk
 
 from dirigo import units
 from dirigo.components.hardware import Hardware
-from dirigo.plugins.acquisitions import FrameAcquisitionSpec, FrameAcquisition
+from dirigo.plugins.acquisitions import (
+    FrameAcquisitionSpec, FrameAcquisition, StackAcquisitionSpec
+)
+
 
 
 class AcquisitionControl(ctk.CTkFrame):
@@ -17,6 +20,7 @@ class AcquisitionControl(ctk.CTkFrame):
         self._stop_callback = stop_callback
         self._focus_running = False
         self._capture_running = False
+        self._stack_running = False
 
         self.focus_button = ctk.CTkButton(
             self, 
@@ -26,7 +30,7 @@ class AcquisitionControl(ctk.CTkFrame):
             height=self.BUTTON_HEIGHT,
             command=lambda: self.start('focus')
         )
-        self.focus_button.grid(row=0, column=0, padx=5)
+        self.focus_button.grid(row=0, column=0, padx=5, pady=5)
 
         self.capture_button = ctk.CTkButton(
             self, 
@@ -36,16 +40,30 @@ class AcquisitionControl(ctk.CTkFrame):
             height=self.BUTTON_HEIGHT,
             command=lambda: self.start('capture')
         )
-        self.capture_button.grid(row=0, column=1, padx=5)
+        self.capture_button.grid(row=0, column=1, padx=5, pady=5)
+
+        self.stack_button = ctk.CTkButton(
+            self, 
+            text="STACK",
+            font=ctk.CTkFont(size=self.BUTTON_FONT_SIZE, weight="bold"),
+            width=self.BUTTON_WIDTH,
+            height=self.BUTTON_HEIGHT,
+            command=lambda: self.start('stack')
+        )
+        self.stack_button.grid(row=1, column=0, padx=5, pady=5)
 
 
     def start(self, type: str):
         if type == 'focus':
             self._focus_running = not self._focus_running
 
-            # enable/disable capture
-            capture_state = ctk.DISABLED if self._focus_running else ctk.NORMAL
-            self.capture_button.configure(state=capture_state)
+            # enable/disable capture, stack
+            self.capture_button.configure(
+                state=ctk.DISABLED if self._focus_running else ctk.NORMAL
+            )
+            self.stack_button.configure(
+                state=ctk.DISABLED if self._focus_running else ctk.NORMAL
+            )
 
             if self._focus_running:
                 self.focus_button.configure(text="STOP")
@@ -56,9 +74,13 @@ class AcquisitionControl(ctk.CTkFrame):
         elif type == 'capture':
             self._capture_running = not self._capture_running
 
-            # enable/disable capture
-            focus_state = ctk.DISABLED if self._capture_running else ctk.NORMAL
-            self.focus_button.configure(state=focus_state)
+            # enable/disable focus, stack
+            self.focus_button.configure(
+                state=ctk.DISABLED if self._capture_running else ctk.NORMAL
+            )
+            self.stack_button.configure(
+                state=ctk.DISABLED if self._capture_running else ctk.NORMAL
+            )
 
             if self._capture_running:
                 self.capture_button.configure(text="ABORT")
@@ -66,17 +88,39 @@ class AcquisitionControl(ctk.CTkFrame):
             else:
                 self._stop_callback()
 
+        elif type == 'stack':
+            self._stack_running = not self._stack_running
+
+            # enable/disable focus, capture
+            self.focus_button.configure(
+                state=ctk.DISABLED if self._stack_running else ctk.NORMAL
+            )
+            self.capture_button.configure(
+                state=ctk.DISABLED if self._stack_running else ctk.NORMAL
+            )
+
+            if self._stack_running:
+                self.stack_button.configure(text="ABORT")
+                self._start_callback(acq_type="stack", log_frames=True)
+            else:
+                self._stop_callback()
+
     def stopped(self):
         """Reset internal flags and button states"""
         self._focus_running = False
         self._capture_running = False
+        self._stack_running = False
 
         self.focus_button.configure(state=ctk.NORMAL, text="FOCUS")
         self.capture_button.configure(state=ctk.NORMAL, text="CAPTURE")
+        self.stack_button.configure(state=ctk.NORMAL, text="STACK")
 
     @property  
     def acquisition_running(self) -> bool:
-        return True if self._focus_running or self._capture_running else False
+        if self._focus_running or self._capture_running or self._stack_running:
+            return True 
+        else:
+            return False
 
 
 class FrameSpecificationControl(ctk.CTkFrame):
@@ -414,12 +458,96 @@ class FrameSpecificationControl(ctk.CTkFrame):
         )
     
 
+class StackSpecificationControl(ctk.CTkFrame):
+    def __init__(self, parent, frame_spec_control: FrameSpecificationControl):
+        super().__init__(parent)
+        self._frame_spec_control = frame_spec_control
+        self._lower_limit = units.Position('-200 um')
+        self._upper_limit = units.Position('100 um')
+        self._spacing = units.Position('25 um')
+        self._depths = round(self._range / self._spacing)
+
+        r = 0
+
+        timing_label = ctk.CTkLabel(self, text="Stack Specification", font=ctk.CTkFont(size=16, weight='bold'))
+        timing_label.grid(row=r, columnspan=4, padx=10, sticky="w")
+        r +=1 
+
+        lower_limit_label = ctk.CTkLabel(self, text="Lower:")
+        lower_limit_label.grid(row=r, column=0, padx=4, sticky='e')
+        self.lower_limit = ctk.CTkEntry(self, width=60)
+        self.lower_limit.insert(0, str(self._lower_limit))
+        self.lower_limit.grid(row=r, column=1, pady=3)
+        self.lower_limit.bind("<Return>", lambda e: self.update_lower_limit())
+        self.lower_limit.bind("<FocusOut>", lambda e: self.update_lower_limit())
+
+        upper_limit_label = ctk.CTkLabel(self, text="Upper:")
+        upper_limit_label.grid(row=r, column=2, padx=4, sticky='e')
+        self.upper_limit = ctk.CTkEntry(self, width=60)
+        self.upper_limit.insert(0, str(self._upper_limit))
+        self.upper_limit.grid(row=r, column=3, pady=3)
+        self.upper_limit.bind("<Return>", lambda e: self.update_upper_limit())
+        self.upper_limit.bind("<FocusOut>", lambda e: self.update_upper_limit())
+        r += 1
+
+        spacing_label = ctk.CTkLabel(self, text="Spacing:")
+        spacing_label.grid(row=r, column=0, padx=4, sticky='e')
+        self.spacing = ctk.CTkEntry(self, width=60)
+        self.spacing.insert(0, str(self._spacing))
+        self.spacing.grid(row=r, column=1, pady=3)
+        self.spacing.bind("<Return>", lambda e: self.update_spacing())
+        self.spacing.bind("<FocusOut>", lambda e: self.update_spacing())
+
+        depths_label = ctk.CTkLabel(self, text="Depths:")
+        depths_label.grid(row=r, column=2, padx=4, sticky='e')
+        self.depths = ctk.CTkEntry(self, width=60)
+        self.depths.insert(0, str(self._depths))
+        self.depths.grid(row=r, column=3, pady=3)
+        self.depths.bind("<Return>", lambda e: self.update_depths())
+        self.depths.bind("<FocusOut>", lambda e: self.update_depths())
+    
+    def update_upper_limit(self):
+        # Validate new value and update dependent fields
+        pass
+
+    def update_lower_limit(self):
+        pass
+
+    def update_spacing(self):
+        pass
+
+    def update_depths(self):
+        pass
+
+    @property
+    def _range(self) -> units.Position:
+        return self._upper_limit - self._lower_limit
+    
+    def generate_spec(self) -> StackAcquisitionSpec:
+        frame = self._frame_spec_control
+        return StackAcquisitionSpec(
+            bidirectional_scanning=(frame.directions_var.get() == "Bidirectional"),
+            line_width=frame._frame_width,
+            frame_height=frame._frame_height,
+            pixel_time=frame._pixel_time,
+            pixel_size=frame._pixel_width,
+            pixel_height=frame._pixel_height,
+            fill_fraction = frame._fill_fraction,
+            buffers_allocated=4, # TODO not hardcode
+            digitizer_profile = "default",
+            flyback_periods=32, # TODO update this
+            lower_limit=self._lower_limit,
+            upper_limit=self._upper_limit,
+            depth_spacing=self._spacing
+        )
+
+
 class TimingIndicator(ctk.CTkFrame):
     def __init__(self, parent, hardware: Hardware):
         super().__init__(parent)
         self._hw = hardware
 
-        timing_label = ctk.CTkLabel(self, text="Timing", font=ctk.CTkFont(size=14, weight='bold'))
+        timing_label = ctk.CTkLabel(self, text="Timing", font=ctk.CTkFont(size=16, weight='bold'))
         timing_label.grid(row=0, columnspan=2, padx=10, sticky="w")
 
         line_rate_label = ctk.CTkLabel(self, text="Line Rate:")
