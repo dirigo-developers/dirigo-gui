@@ -3,7 +3,6 @@ from tkinter import filedialog
 
 from platformdirs import user_documents_path
 
-
 from dirigo.sw_interfaces import Logger
 
 
@@ -39,6 +38,12 @@ class LoggerControl(ctk.CTkFrame):
         # Directory Selection
         self.directory_button = ctk.CTkButton(self, text="Path...", command=self.select_save_path, width=20)
         self.directory_button.grid(row=2, column=2, padx=5, pady=2)
+
+        # Save Raw Data
+        save_raw_label = ctk.CTkLabel(self, text="Save Raw:", font=ctk.CTkFont(size=14, weight="bold"))
+        save_raw_label.grid(row=3, column=0, sticky="e")
+        self.save_raw_checkbox = ctk.CTkCheckBox(self, text="")
+        self.save_raw_checkbox.grid(row=3, column=1, columnspan=2, sticky="w", padx=5, pady=2)
 
         # Configure resizing
         self.columnconfigure(1, weight=1)

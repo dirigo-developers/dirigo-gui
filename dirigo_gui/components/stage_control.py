@@ -84,8 +84,7 @@ class StageControl(ctk.CTkFrame):
         self._objective_scanner = objective_scanner
         self._is_pressed = False
         
-        font = ctk.CTkFont(size=14, weight='bold')
-        stage_label = ctk.CTkLabel(self, text="Stage", font=font, anchor="w")
+        stage_label = ctk.CTkLabel(self, text="Stage", anchor="w", font=ctk.CTkFont(size=16, weight='bold'))
         stage_label.pack(fill="x", padx=10, pady=1)
 
         buttons_frame = ctk.CTkFrame(self, fg_color="transparent")

@@ -10,7 +10,7 @@ from dirigo.plugins.acquisitions import (
 
 class AcquisitionControl(ctk.CTkFrame):
     BUTTON_WIDTH = 100
-    BUTTON_HEIGHT = 40
+    BUTTON_HEIGHT = 34
     BUTTON_FONT_SIZE = 16
 
     def __init__(self, parent, start_callback, stop_callback):

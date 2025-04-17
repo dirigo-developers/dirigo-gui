@@ -195,9 +195,17 @@ class ReferenceGUI(ctk.CTk):
         if log_frames:
             # Create logger worker, connect, and start
             self.logger = self.dirigo.logger_factory(self.processor)
+            
             self.processor.add_subscriber(self.logger)
             self.logger_control.link_logger_worker(self.logger)
             self.logger.start()
+
+            if self.logger_control.save_raw_checkbox.get():
+                self.raw_logger = self.dirigo.logger_factory(acquisition=self.acquisition)
+                self.acquisition.add_subscriber(self.raw_logger)
+                self.raw_logger.basename = self.logger.basename + "_raw"
+                self.raw_logger.frames_per_file = self.logger.frames_per_file
+                self.raw_logger.start()
 
         self.display.start()
         self.processor.start()
