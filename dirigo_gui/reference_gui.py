@@ -183,9 +183,7 @@ class ReferenceGUI(ctk.CTk):
         self.processor = self.dirigo.processor_factory(self.acquisition)
         self.display = self.dirigo.display_factory(self.processor)            
 
-        # Connect threads 
-        self.acquisition.add_subscriber(self.processor)
-        self.processor.add_subscriber(self.display)           
+        # Connect Display worker's output to GUI      
         self.display.add_subscriber(self)
 
         # Link workers to GUI control elements
@@ -196,13 +194,11 @@ class ReferenceGUI(ctk.CTk):
             # Create logger worker, connect, and start
             self.logger = self.dirigo.logger_factory(self.processor)
             
-            self.processor.add_subscriber(self.logger)
             self.logger_control.link_logger_worker(self.logger)
             self.logger.start()
 
             if self.logger_control.save_raw_checkbox.get():
                 self.raw_logger = self.dirigo.logger_factory(acquisition=self.acquisition)
-                self.acquisition.add_subscriber(self.raw_logger)
                 self.raw_logger.basename = self.logger.basename + "_raw"
                 self.raw_logger.frames_per_file = self.logger.frames_per_file
                 self.raw_logger.start()
