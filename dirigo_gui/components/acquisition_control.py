@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+import math
+
 import customtkinter as ctk
 
 from dirigo import units
@@ -5,6 +8,7 @@ from dirigo.components.hardware import Hardware
 from dirigo.plugins.acquisitions import (
     FrameAcquisitionSpec, FrameAcquisition, StackAcquisitionSpec
 )
+from dirigo_gui.components.common import LabeledEntry
 
 
 
@@ -456,90 +460,211 @@ class FrameSpecificationControl(ctk.CTkFrame):
             digitizer_profile = "default",
             flyback_periods=32 # TODO update this
         )
-    
+
+
+@dataclass
+class _StackSpecModel:
+    lower: units.Position
+    upper: units.Position
+    spacing: units.Position
+    depths: int
+
+    @property
+    def range(self) -> units.Position:
+        return self.upper - self.lower
+
+    def recompute_depths(self) -> None:
+        """Depths = ⌊range / spacing⌋ + 1 (inclusive endpoints)."""
+        self.depths = math.floor(self.range / self.spacing) + 1
+
+    def recompute_spacing(self) -> None:
+        """Spacing = range / (depths - 1); guard division‑by‑zero."""
+        if self.depths > 1:
+            self.spacing = self.range / (self.depths - 1)
+
 
 class StackSpecificationControl(ctk.CTkFrame):
+
+    _FIELD_INFO = (
+        # label text   attribute name in the model
+        ("Lower:",  "lower"),
+        ("Upper:",  "upper"),
+        ("Spacing:","spacing"),
+        ("Depths:", "depths"),
+    )
+
     def __init__(self, parent, frame_spec_control: FrameSpecificationControl):
         super().__init__(parent)
         self._frame_spec_control = frame_spec_control
-        self._lower_limit = units.Position('-200 um')
-        self._upper_limit = units.Position('100 um')
-        self._spacing = units.Position('25 um')
-        self._depths = round(self._range / self._spacing)
 
-        r = 0
+        # Initialize model (TODO, grab defaults from spec toml)
+        self._model = _StackSpecModel(
+            lower   = units.Position("-200 um"),
+            upper   = units.Position("100 um"),
+            spacing = units.Position("25 um"),
+            depths  = 1, # will be overwritten 
+        )
+        self._model.recompute_depths()
 
-        timing_label = ctk.CTkLabel(self, text="Stack Specification", font=ctk.CTkFont(size=16, weight='bold'))
-        timing_label.grid(row=r, columnspan=4, padx=10, sticky="w")
-        r +=1 
+        # Initialize GUI fields
+        COLS = 2
+        ctk.CTkLabel(
+            self,
+            text="Stack Specification",
+            font=ctk.CTkFont(size=16, weight="bold")
+        ).grid(row=0, columnspan=4, sticky="w", padx=10, pady=(0, 4))
 
-        lower_limit_label = ctk.CTkLabel(self, text="Lower:")
-        lower_limit_label.grid(row=r, column=0, padx=4, sticky='e')
-        self.lower_limit = ctk.CTkEntry(self, width=60)
-        self.lower_limit.insert(0, str(self._lower_limit))
-        self.lower_limit.grid(row=r, column=1, pady=3)
-        self.lower_limit.bind("<Return>", lambda e: self.update_lower_limit())
-        self.lower_limit.bind("<FocusOut>", lambda e: self.update_lower_limit())
+        self._widgets: dict[str, LabeledEntry] = {}
+        for i, (text, attr) in enumerate(self._FIELD_INFO):
+            widget = LabeledEntry(
+                self, text,
+                default=str(getattr(self._model, attr)),
+                on_validate=lambda val, field=attr: self._on_field_change(field, val)
+            )
 
-        upper_limit_label = ctk.CTkLabel(self, text="Upper:")
-        upper_limit_label.grid(row=r, column=2, padx=4, sticky='e')
-        self.upper_limit = ctk.CTkEntry(self, width=60)
-        self.upper_limit.insert(0, str(self._upper_limit))
-        self.upper_limit.grid(row=r, column=3, pady=3)
-        self.upper_limit.bind("<Return>", lambda e: self.update_upper_limit())
-        self.upper_limit.bind("<FocusOut>", lambda e: self.update_upper_limit())
-        r += 1
+            row, col = divmod(i, COLS)  # arange in 2X2 grid
+            widget.grid(row=row+1, column=col, padx=4, pady=3, sticky="e")
+            self._widgets[attr] = widget
 
-        spacing_label = ctk.CTkLabel(self, text="Spacing:")
-        spacing_label.grid(row=r, column=0, padx=4, sticky='e')
-        self.spacing = ctk.CTkEntry(self, width=60)
-        self.spacing.insert(0, str(self._spacing))
-        self.spacing.grid(row=r, column=1, pady=3)
-        self.spacing.bind("<Return>", lambda e: self.update_spacing())
-        self.spacing.bind("<FocusOut>", lambda e: self.update_spacing())
+    def _on_field_change(self, field: str, raw: str) -> None:
+        """
+        Parse & validate `raw`, update the model, and refresh any dependent
+        widgets. If parsing fails the offending widget background turns red.
+        """
+        widget = self._widgets[field]
+        try:
+            if field == "depths":
+                value = int(raw)
+                if value < 1:
+                    raise ValueError
+                setattr(self._model, field, value)
+                # editing depths => recompute spacing
+                self._model.recompute_spacing()
+            else:                                    # lower | upper | spacing
+                value = units.Position(raw)
+                setattr(self._model, field, value)
+                if field in ("lower", "upper"):
+                    self._model.recompute_depths()
+                else:                               # spacing edited
+                    self._model.recompute_depths()
 
-        depths_label = ctk.CTkLabel(self, text="Depths:")
-        depths_label.grid(row=r, column=2, padx=4, sticky='e')
-        self.depths = ctk.CTkEntry(self, width=60)
-        self.depths.insert(0, str(self._depths))
-        self.depths.grid(row=r, column=3, pady=3)
-        self.depths.bind("<Return>", lambda e: self.update_depths())
-        self.depths.bind("<FocusOut>", lambda e: self.update_depths())
-    
-    def update_upper_limit(self):
-        # Validate new value and update dependent fields
-        pass
+            widget.set_text_normal()
+            self._sync()                             # push model to GUI
+        except Exception:
+            widget.set_text_red()       # set to red for failure
 
-    def update_lower_limit(self):
-        pass
-
-    def update_spacing(self):
-        pass
-
-    def update_depths(self):
-        pass
+    def _sync(self) -> None:
+        """Push *validated* model values out to the GUI widgets."""
+        for attr in ("lower", "upper", "spacing"):
+            self._widgets[attr].set(str(getattr(self._model, attr)))
+        self._widgets["depths"].set(str(self._model.depths))
 
     @property
-    def _range(self) -> units.Position:
-        return self._upper_limit - self._lower_limit
+    def spec_model(self) -> _StackSpecModel:
+        """Return a *copy* so callers can’t mutate internal state."""
+        return _StackSpecModel(**vars(self._model))
     
     def generate_spec(self) -> StackAcquisitionSpec:
-        frame = self._frame_spec_control
+        f = self._frame_spec_control
+        m = self._model                          # shorthand
         return StackAcquisitionSpec(
-            bidirectional_scanning=(frame.directions_var.get() == "Bidirectional"),
-            line_width=frame._frame_width,
-            frame_height=frame._frame_height,
-            pixel_time=frame._pixel_time,
-            pixel_size=frame._pixel_width,
-            pixel_height=frame._pixel_height,
-            fill_fraction = frame._fill_fraction,
-            buffers_allocated=4, # TODO not hardcode
-            digitizer_profile = "default",
-            flyback_periods=32, # TODO update this
-            lower_limit=self._lower_limit,
-            upper_limit=self._upper_limit,
-            depth_spacing=self._spacing
+            bidirectional_scanning = (f.directions_var.get() == "Bidirectional"),
+            line_width             = f._frame_width,
+            frame_height           = f._frame_height,
+            pixel_time             = f._pixel_time,
+            pixel_size             = f._pixel_width,
+            pixel_height           = f._pixel_height,
+            fill_fraction          = f._fill_fraction,
+            buffers_allocated      = 4,          # TODO
+            digitizer_profile      = "default",
+            flyback_periods        = 32,         # TODO
+            lower_limit            = m.lower,
+            upper_limit            = m.upper,
+            depth_spacing          = m.spacing,
         )
+    
+# class StackSpecificationControl(ctk.CTkFrame):
+#     def __init__(self, parent, frame_spec_control: FrameSpecificationControl):
+#         super().__init__(parent)
+#         self._frame_spec_control = frame_spec_control
+#         self._lower_limit = units.Position('-200 um')
+#         self._upper_limit = units.Position('100 um')
+#         self._spacing = units.Position('25 um')
+#         self._depths = round(self._range / self._spacing)
+
+#         r = 0
+
+#         timing_label = ctk.CTkLabel(self, text="Stack Specification", font=ctk.CTkFont(size=16, weight='bold'))
+#         timing_label.grid(row=r, columnspan=4, padx=10, sticky="w")
+#         r += 1 
+
+#         lower_limit_label = ctk.CTkLabel(self, text="Lower:")
+#         lower_limit_label.grid(row=r, column=0, padx=4, sticky='e')
+#         self.lower_limit = ctk.CTkEntry(self, width=60)
+#         self.lower_limit.insert(0, str(self._lower_limit))
+#         self.lower_limit.grid(row=r, column=1, pady=3)
+#         self.lower_limit.bind("<Return>", lambda e: self.update_lower_limit())
+#         self.lower_limit.bind("<FocusOut>", lambda e: self.update_lower_limit())
+
+#         upper_limit_label = ctk.CTkLabel(self, text="Upper:")
+#         upper_limit_label.grid(row=r, column=2, padx=4, sticky='e')
+#         self.upper_limit = ctk.CTkEntry(self, width=60)
+#         self.upper_limit.insert(0, str(self._upper_limit))
+#         self.upper_limit.grid(row=r, column=3, pady=3)
+#         self.upper_limit.bind("<Return>", lambda e: self.update_upper_limit())
+#         self.upper_limit.bind("<FocusOut>", lambda e: self.update_upper_limit())
+#         r += 1
+
+#         spacing_label = ctk.CTkLabel(self, text="Spacing:")
+#         spacing_label.grid(row=r, column=0, padx=4, sticky='e')
+#         self.spacing = ctk.CTkEntry(self, width=60)
+#         self.spacing.insert(0, str(self._spacing))
+#         self.spacing.grid(row=r, column=1, pady=3)
+#         self.spacing.bind("<Return>", lambda e: self.update_spacing())
+#         self.spacing.bind("<FocusOut>", lambda e: self.update_spacing())
+
+#         depths_label = ctk.CTkLabel(self, text="Depths:")
+#         depths_label.grid(row=r, column=2, padx=4, sticky='e')
+#         self.depths = ctk.CTkEntry(self, width=60)
+#         self.depths.insert(0, str(self._depths))
+#         self.depths.grid(row=r, column=3, pady=3)
+#         self.depths.bind("<Return>", lambda e: self.update_depths())
+#         self.depths.bind("<FocusOut>", lambda e: self.update_depths())
+    
+#     def update_upper_limit(self):
+#         # Validate new value and update dependent fields
+#         pass
+
+#     def update_lower_limit(self):
+#         pass
+
+#     def update_spacing(self):
+#         pass
+
+#     def update_depths(self):
+#         pass
+
+#     @property
+#     def _range(self) -> units.Position:
+#         return self._upper_limit - self._lower_limit
+    
+#     def generate_spec(self) -> StackAcquisitionSpec:
+#         frame = self._frame_spec_control
+#         return StackAcquisitionSpec(
+#             bidirectional_scanning=(frame.directions_var.get() == "Bidirectional"),
+#             line_width=frame._frame_width,
+#             frame_height=frame._frame_height,
+#             pixel_time=frame._pixel_time,
+#             pixel_size=frame._pixel_width,
+#             pixel_height=frame._pixel_height,
+#             fill_fraction = frame._fill_fraction,
+#             buffers_allocated=4, # TODO not hardcode
+#             digitizer_profile = "default",
+#             flyback_periods=32, # TODO update this
+#             lower_limit=self._lower_limit,
+#             upper_limit=self._upper_limit,
+#             depth_spacing=self._spacing
+#         )
 
 
 class TimingIndicator(ctk.CTkFrame):
