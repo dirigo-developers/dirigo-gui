@@ -297,7 +297,7 @@ class FrameSpecificationControl(ctk.CTkFrame):
         r += 1
 
         # frames per acquisition
-        frames_per_acq_label = ctk.CTkLabel(settings_grid_frame, text="Frames:", font=font)
+        frames_per_acq_label = ctk.CTkLabel(settings_grid_frame, text="Frames/Series:", font=font)
         frames_per_acq_label.grid(row=r, column=0, padx=5, sticky='e')
         self.frames_per_acquisition = ctk.CTkEntry(settings_grid_frame, width=70)
         self.frames_per_acquisition.insert(0, str(self._frames_per_acquisition))
@@ -310,7 +310,7 @@ class FrameSpecificationControl(ctk.CTkFrame):
         )
         r += 1
 
-        # flyback periods
+        # flyback periods - TODO
 
         settings_grid_frame.pack(padx=0, pady=0, fill='x')
 
@@ -449,6 +449,16 @@ class FrameSpecificationControl(ctk.CTkFrame):
         self._timing_indicator.update(self.generate_spec())
 
     def update_frames_per_acquisition(self):
+        new_frames = int(self.frames_per_acquisition.get())
+        if new_frames <= 0:
+            # revert
+            self.frames_per_acquisition.delete(0, ctk.END)
+            self.frames_per_acquisition.insert(0, str(self._frames_per_acquisition))
+            return
+        self._frames_per_acquisition = new_frames
+        self.frames_per_acquisition.delete(0, ctk.END)
+        self.frames_per_acquisition.insert(0, str(self._frames_per_acquisition))
+
         self._timing_indicator.update(self.generate_spec())
 
     def update_array_shape(self):

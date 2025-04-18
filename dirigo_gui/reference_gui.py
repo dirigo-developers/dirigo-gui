@@ -165,7 +165,7 @@ class ReferenceGUI(ctk.CTk):
 
     def start_acquisition(self, log_frames: bool = False, acq_type: str = 'frame'):
         if acq_type not in {'frame', 'stack'}:
-            raise ValueError("Unsupported Acquistion type: {acq_type}")
+            raise ValueError("Unsupported Acquistion type: {acq_type}") 
         self.display_count = 0
         self.tk_image = None # resets the previous image if it exists
 
