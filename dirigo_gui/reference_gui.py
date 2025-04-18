@@ -198,7 +198,8 @@ class ReferenceGUI(ctk.CTk):
             self.logger.start()
 
             if self.logger_control.save_raw_checkbox.get():
-                self.raw_logger = self.dirigo.logger_factory(acquisition=self.acquisition)
+                # Directly connect the Acquisition to raw Logger
+                self.raw_logger = self.dirigo.logger_factory(self.acquisition)
                 self.raw_logger.basename = self.logger.basename + "_raw"
                 self.raw_logger.frames_per_file = self.logger.frames_per_file
                 self.raw_logger.start()

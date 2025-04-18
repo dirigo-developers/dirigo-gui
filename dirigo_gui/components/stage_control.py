@@ -15,7 +15,7 @@ class XYControl(ctk.CTkFrame):
     Up, Right, Down, and Left.
     """
 
-    def __init__(self, parent: 'StageControl', *args, **kwargs):
+    def __init__(self, stage_control: 'StageControl', parent, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
 
         # Create arrow buttons
@@ -25,14 +25,14 @@ class XYControl(ctk.CTkFrame):
         self.btn_down = ctk.CTkButton(self, text="↓", font=font, width=30)
         self.btn_left = ctk.CTkButton(self, text="←", font=font, width=30)
 
-        self.btn_up.bind("<ButtonPress-1>", lambda event: parent.on_press('+y', XY_VELOCITY))
-        self.btn_up.bind("<ButtonRelease-1>", lambda event: parent.on_release())
-        self.btn_right.bind("<ButtonPress-1>", lambda event: parent.on_press('+x', XY_VELOCITY))
-        self.btn_right.bind("<ButtonRelease-1>", lambda event: parent.on_release())
-        self.btn_down.bind("<ButtonPress-1>", lambda event: parent.on_press('-y', XY_VELOCITY))
-        self.btn_down.bind("<ButtonRelease-1>", lambda event: parent.on_release())
-        self.btn_left.bind("<ButtonPress-1>", lambda event: parent.on_press('-x', XY_VELOCITY))
-        self.btn_left.bind("<ButtonRelease-1>", lambda event: parent.on_release())
+        self.btn_up.bind("<ButtonPress-1>", lambda event: stage_control.on_press('+y', XY_VELOCITY))
+        self.btn_up.bind("<ButtonRelease-1>", lambda event: stage_control.on_release())
+        self.btn_right.bind("<ButtonPress-1>", lambda event: stage_control.on_press('+x', XY_VELOCITY))
+        self.btn_right.bind("<ButtonRelease-1>", lambda event: stage_control.on_release())
+        self.btn_down.bind("<ButtonPress-1>", lambda event: stage_control.on_press('-y', XY_VELOCITY))
+        self.btn_down.bind("<ButtonRelease-1>", lambda event: stage_control.on_release())
+        self.btn_left.bind("<ButtonPress-1>", lambda event: stage_control.on_press('-x', XY_VELOCITY))
+        self.btn_left.bind("<ButtonRelease-1>", lambda event: stage_control.on_release())
 
         # Button grid:
         #
@@ -53,7 +53,7 @@ class ZControl(ctk.CTkFrame):
     Up, Right, Down, and Left.
     """
 
-    def __init__(self, parent: 'StageControl', *args, **kwargs):
+    def __init__(self, stage_control: 'StageControl', parent, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
 
         # Create arrow buttons 
@@ -61,10 +61,10 @@ class ZControl(ctk.CTkFrame):
         self.btn_up = ctk.CTkButton(self, text="↑", font=font, width=30)
         self.btn_down = ctk.CTkButton(self, text="↓", font=font, width=30)
 
-        self.btn_up.bind("<ButtonPress-1>", lambda event: parent.on_press('+z', Z_VELOCITY))
-        self.btn_up.bind("<ButtonRelease-1>", lambda event: parent.on_release())
-        self.btn_down.bind("<ButtonPress-1>", lambda event: parent.on_press('-z', Z_VELOCITY))
-        self.btn_down.bind("<ButtonRelease-1>", lambda event: parent.on_release())
+        self.btn_up.bind("<ButtonPress-1>", lambda event: stage_control.on_press('+z', Z_VELOCITY))
+        self.btn_up.bind("<ButtonRelease-1>", lambda event: stage_control.on_release())
+        self.btn_down.bind("<ButtonPress-1>", lambda event: stage_control.on_press('-z', Z_VELOCITY))
+        self.btn_down.bind("<ButtonRelease-1>", lambda event: stage_control.on_release())
 
         # Button grid:
         #
@@ -88,10 +88,10 @@ class StageControl(ctk.CTkFrame):
         stage_label.pack(fill="x", padx=10, pady=1)
 
         buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.xy = XYControl(buttons_frame, fg_color="transparent")
+        self.xy = XYControl(self, buttons_frame, fg_color="transparent")
         self.xy.pack(side=ctk.LEFT, expand=True, fill="x", padx=5, pady=5)
 
-        self.z = ZControl(buttons_frame, fg_color="transparent")
+        self.z = ZControl(self, buttons_frame, fg_color="transparent")
         self.z.pack(side=ctk.RIGHT, fill="x", padx=5, pady=5)
 
         buttons_frame.pack(fill="x", padx=5, pady=3)
