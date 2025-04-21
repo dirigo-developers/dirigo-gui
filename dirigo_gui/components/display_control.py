@@ -6,7 +6,7 @@ from dirigo.sw_interfaces.display import ColorVector
 from dirigo.plugins.displays import DisplayChannel
 
 
-class SingleChannelFrame(ctk.CTkFrame):
+class ChannelFrame(ctk.CTkFrame):
     """
     Encapsulates channel display properties:
         - display on/off
@@ -228,10 +228,10 @@ class DisplayControl(ctk.CTkFrame):
         title_label = ctk.CTkLabel(self, text=title, font=ctk.CTkFont(size=16, weight="bold"))
         title_label.pack(anchor="nw", pady=(10,0), padx=10)
 
-        # Make N SingleChannelFrames
-        self.channel_frames: list[SingleChannelFrame] = []
+        # Make N ChannelFrames
+        self.channel_frames: list[ChannelFrame] = []
         for i in range(self.dirigo.hw.nchannels_present):
-            channel_frame = SingleChannelFrame(self, self.dirigo, i)
+            channel_frame = ChannelFrame(self, self.dirigo, i)
             channel_frame.pack(fill="y", pady=2, padx=2, anchor="n")
             self.channel_frames.append(channel_frame)  # Save reference to each ChannelFrame
 

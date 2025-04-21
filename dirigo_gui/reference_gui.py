@@ -12,6 +12,7 @@ import numpy as np
 from dirigo.main import Dirigo
 from dirigo.sw_interfaces import Acquisition, Processor, Display
 from dirigo.plugins.acquisitions import FrameAcquisitionSpec
+from dirigo_gui.components.detector_control import DetectorSetControl
 from dirigo_gui.components.display_control import DisplayControl
 from dirigo_gui.components.logger_control import LoggerControl
 from dirigo_gui.components.acquisition_control import (
@@ -61,6 +62,10 @@ class RightPanel(ctk.CTkFrame):
         super().__init__(parent, width=200, corner_radius=0)
 
         self._toggle_theme_callback = toggle_theme_callback
+
+        if controller.hw.detectors:
+            self.detector_control = DetectorSetControl(controller.hw.detectors)
+            self.detector_control.pack(padx=10, pady=10, fill="x")
         
         self.display_control = DisplayControl(self, controller)
         self.display_control.pack(padx=10, pady=10, fill="x")
