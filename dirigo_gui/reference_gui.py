@@ -64,7 +64,7 @@ class RightPanel(ctk.CTkFrame):
         self._toggle_theme_callback = toggle_theme_callback
 
         if controller.hw.detectors:
-            self.detector_control = DetectorSetControl(controller.hw.detectors)
+            self.detector_control = DetectorSetControl(self, controller.hw.detectors)
             self.detector_control.pack(padx=10, pady=10, fill="x")
         
         self.display_control = DisplayControl(self, controller)

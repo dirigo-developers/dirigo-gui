@@ -13,7 +13,7 @@ class DetectorFrame(ctk.CTkFrame):
 
     """
     def __init__(self, parent, detector: Detector):
-        super().__init__(parent)
+        super().__init__(parent, fg_color="transparent")
 
         if not isinstance(detector, Detector):
             raise ValueError("DetectorFrame must be initialized with a Detector hardware object")
@@ -27,10 +27,74 @@ class DetectorFrame(ctk.CTkFrame):
             variable=self.enabled_var,
             command=self.update_enabled
         )
-        self.enable_checkbox.grid(row=0, column=0, padx=5, pady=(10,0), sticky="w")
+        self.enable_checkbox.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+
+        try:
+            # Gain slider with Input Box
+            slider_frame = ctk.CTkFrame(self, fg_color="transparent")
+            
+            min_slider_label = ctk.CTkLabel(slider_frame, text="Gain:")
+            min_slider_label.grid(row=0, column=0, padx=5)
+            self.entry = ctk.CTkEntry(slider_frame, width=50)
+            self.entry.insert(0, f"{self._detector.gain}")
+            self.entry.grid(row=0, column=2, padx=5, pady=2)
+
+            self.slider = ctk.CTkSlider(
+                slider_frame, 
+                from_=self._detector.gain_range.min, 
+                to=self._detector.gain_range.max, 
+                orientation="horizontal", 
+                width=150,
+                command=lambda value: self.update_entry(value)
+            )
+            self.slider.set(self._detector.gain)  
+            self.slider.grid(row=0, column=1, padx=5, sticky="ew")
+
+            self.entry.bind(
+                "<Return>", 
+                lambda event: self.update_slider()
+            )
+            self.entry.bind(
+                "<FocusOut>",
+                lambda event: self.update_slider()
+            )
+
+            slider_frame.grid(row=1, column=0, columnspan=2, pady=5, sticky="ew")
+
+        except NotImplementedError:
+            # Gain is not adjustable
+            self.entry = None
+            self.slider = None
 
     def update_enabled(self):
         self._detector.enabled = self.enabled_var.get()
+
+    def update_entry(self, value):
+        """Update the gain entry box and display_min property."""
+        self.entry.delete(0, ctk.END)
+        self.entry.insert(0, str(int(value))) # How to handle ints and units.Voltage?
+        self._detector.gain = int(value) # Handle NotImplementedError?
+
+    def update_slider(self):
+        """Update the slider when the entry box value changes."""
+        try:
+            value = self.clamp_value(self.entry.get())
+            self.slider.set(value)
+            self.entry.delete(0, ctk.END)
+            self.entry.insert(0, str(value))  # Update entry with clamped value
+            self._detector.gain = int(value) # Handle NotImplementedError?
+        except ValueError:
+            # If invalid input, restore the slider's current value
+            self.entry.delete(0, ctk.END)
+            self.entry.insert(0, str(int(self.slider.get())))
+
+    def clamp_value(self, value) -> int :
+        value = int(value)
+        if value < self._detector.gain_range.min:  # Clamp to minimum
+            value = self._detector.gain_range.min
+        elif value > self._detector.gain_range.max:  # Clamp to maximum
+            value = self._detector.gain_range.max
+        return value
 
 
 
