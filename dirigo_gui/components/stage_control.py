@@ -3,6 +3,7 @@ import customtkinter as ctk
 from dirigo import units
 from dirigo.hw_interfaces.stage import MultiAxisStage
 from dirigo.hw_interfaces.scanner import ObjectiveZScanner
+from dirigo_gui.components.common import LabeledDisplay
 
 
 XY_VELOCITY = units.Velocity("2 mm/s")
@@ -77,7 +78,41 @@ class ZControl(ctk.CTkFrame):
         self.btn_down.grid(row=2, column=0, padx=5, pady=5)
 
 
+class NumericEntries(ctk.CTkFrame):
+    ENTRY_WIDTH = 52
+    def __init__(self, parent):
+        super().__init__(parent, fg_color="transparent")
+
+        # Create entries
+        self.x = LabeledDisplay(
+            self,
+            text="X:",
+            default="10 mm",
+            width=self.ENTRY_WIDTH
+        )
+        self.x.grid(row=0, column=0, padx=2)
+
+        self.y = LabeledDisplay(
+            self,
+            text="Y:",
+            default="20 mm",
+            width=self.ENTRY_WIDTH
+        )
+        self.y.grid(row=0, column=1, padx=2)
+
+        self.z = LabeledDisplay(
+            self,
+            text="Z:",
+            default="30 um",
+            width=self.ENTRY_WIDTH
+        )
+        self.z.grid(row=0, column=2, padx=2)
+
+
+
+
 class StageControl(ctk.CTkFrame):
+    POLLING_INTERVAL_MS = 50
     def __init__(self, parent, stage: MultiAxisStage, objective_scanner: ObjectiveZScanner, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self._stage = stage
@@ -89,12 +124,25 @@ class StageControl(ctk.CTkFrame):
 
         buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.xy = XYControl(self, buttons_frame, fg_color="transparent")
-        self.xy.pack(side=ctk.LEFT, expand=True, fill="x", padx=5, pady=5)
+        self.xy.pack(side=ctk.LEFT, expand=True, fill="x", padx=10)
 
         self.z = ZControl(self, buttons_frame, fg_color="transparent")
-        self.z.pack(side=ctk.RIGHT, fill="x", padx=5, pady=5)
+        self.z.pack(side=ctk.RIGHT, fill="x", padx=10)
 
         buttons_frame.pack(fill="x", padx=5, pady=3)
+
+        self.xyz_entries = NumericEntries(self)
+        self.xyz_entries.pack(fill="x", padx=5, pady=3)
+
+        # Start polling
+        self.poll_stage()
+
+    def poll_stage(self):
+        self.xyz_entries.x.update(self._stage.x.position.with_unit("mm"))
+        self.xyz_entries.y.update(self._stage.y.position.with_unit("mm"))
+        self.xyz_entries.z.update(self._objective_scanner.position.with_unit("μm"))
+        
+        self.after(self.POLLING_INTERVAL_MS, self.poll_stage)
 
     def on_press(self, direction: str, velocity: units.Velocity):
         """Initiates constant velocity movement"""

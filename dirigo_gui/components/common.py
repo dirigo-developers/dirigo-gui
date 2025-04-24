@@ -31,3 +31,34 @@ class LabeledEntry(ctk.CTkFrame):
 
     def set(self, value: str) -> None:
         self.var.set(value)
+
+
+class LabeledDisplay(ctk.CTkFrame):
+    """Static Label + Updatable Display Label."""
+    def __init__(self, parent, text: str, *, 
+                 default: str,
+                 width: int = 60, height: int = 14):
+        
+        super().__init__(parent, fg_color="transparent")
+        
+        ctk.CTkLabel(self, text=text).pack(side="left", padx=2)
+
+        # container frame to enforce a strict width
+        self._disp_container = ctk.CTkFrame(
+            self,
+            fg_color="transparent",
+            width=width,
+            height=height
+        )
+        self._disp_container.pack(side="left", padx=2)
+        self._disp_container.pack_propagate(False)  # disables resizing
+
+        self._disp = ctk.CTkLabel(
+            self._disp_container,
+            text=default,
+            anchor="w"
+        )
+        self._disp.pack(fill="both", expand=True)
+
+    def update(self, value: str) -> None:
+        self._disp.configure(text=value)
