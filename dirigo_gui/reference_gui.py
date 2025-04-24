@@ -1,17 +1,16 @@
 import queue
-import time
 from pathlib import Path
 import toml
 import warnings
 
 from platformdirs import user_config_dir
 import customtkinter as ctk
-from PIL import Image, ImageTk
-import numpy as np
 
 from dirigo.main import Dirigo
 from dirigo.sw_interfaces import Acquisition, Processor, Display
 from dirigo.plugins.acquisitions import FrameAcquisitionSpec
+
+from dirigo_gui.widgets.image_display import LiveViewer
 from dirigo_gui.components.detector_control import DetectorSetControl
 from dirigo_gui.components.display_control import DisplayControl
 from dirigo_gui.components.logger_control import LoggerControl
@@ -29,31 +28,29 @@ class LeftPanel(ctk.CTkFrame):
         self._start_callback = start_callback
         self._stop_callback = stop_callback
         
-        self._hw = controller.hw
-        self._objective_scanner = controller.hw.objective_scanner
-        self._configure_ui()
+        #self._hw = controller.hw
+        #self._objective_scanner = controller.hw.objective_scanner
 
-    def _configure_ui(self):
         self.acquisition_control = AcquisitionControl(self, self._start_callback, self._stop_callback)
         
-        self.timing_indicator = TimingIndicator(self, self._hw)
+        self.timing_indicator = TimingIndicator(self, controller.hw)
         self.frame_specification = FrameSpecificationControl(self, self.timing_indicator)
         self.stack_specification = StackSpecificationControl(self, self.frame_specification)
         self.timing_indicator.update(self.frame_specification.generate_spec())
 
         self.stage_control = StageControl(
             self, 
-            self._hw.stage, 
-            self._objective_scanner, 
+            controller.hw.stage, 
+            controller.hw.objective_scanner, 
         )
 
         self.acquisition_control.pack(pady=10, padx=10, fill="x")
         
         self.frame_specification.pack(pady=10, padx=10, fill="x")
-        if self._hw.objective_scanner:
+        if controller.hw.objective_scanner:
             self.stack_specification.pack(pady=10, padx=10, fill="x")
         self.timing_indicator.pack(pady=10, padx=10, fill="x")
-        if self._hw.stage:
+        if controller.hw.stage:
             self.stage_control.pack(side=ctk.BOTTOM, fill="x", padx=10, pady=5)
 
 
@@ -77,19 +74,6 @@ class RightPanel(ctk.CTkFrame):
         self.theme_switch.pack(side=ctk.BOTTOM, pady=10, padx=10, fill="x")
 
 
-class DisplayCanvas(ctk.CTkCanvas):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._spec: FrameAcquisitionSpec = None
-
-    def add_acquisition_spec(self, spec: FrameAcquisitionSpec):
-        self._spec = spec
-        self.configure(
-            width=self._spec.pixels_per_line,
-            height=self._spec.lines_per_frame,
-        )
-
-
 class ReferenceGUI(ctk.CTk):
     def __init__(self, dirigo_controller: Dirigo):
         super().__init__()
@@ -105,12 +89,9 @@ class ReferenceGUI(ctk.CTk):
         self._configure_ui()
         self._restore_settings()
 
-        self.poll_queue()
-
         self.protocol("WM_DELETE_WINDOW", self.on_close_request) # custom close function
 
     def _configure_ui(self):
-        # Need: peek at acqspec
         self.left_panel = LeftPanel(
             parent=self,
             controller=self.dirigo,
@@ -132,11 +113,12 @@ class ReferenceGUI(ctk.CTk):
         self.logger_control = self.right_panel.logger_control
         self.right_panel.pack(side=ctk.RIGHT, fill=ctk.Y)
 
-        self.display_canvas = DisplayCanvas(self, bg="black", highlightthickness=0)
-        self.display_canvas.configure(width=1000, height=1000) # temporary sizing 
-        self.display_canvas.pack(expand=True, padx=10, pady=10)
-        self.canvas_image = None  # Store reference to avoid garbage collection
-        self.tk_image = None
+        self.viewer = LiveViewer(
+            parent=self,
+            width=int(self.frame_specification.shape_width.get()), 
+            height=int(self.frame_specification.shape_height.get()),
+        )
+        self.viewer.pack(expand=True, padx=10, pady=10)
 
     def _restore_settings(self):
         config_dir = Path(user_config_dir("Dirigo-GUI", "Dirigo"))
@@ -188,12 +170,13 @@ class ReferenceGUI(ctk.CTk):
         self.processor = self.dirigo.processor_factory(self.acquisition)
         self.display = self.dirigo.display_factory(self.processor)            
 
-        # Connect Display worker's output to GUI      
-        self.display.add_subscriber(self)
+        # Connect Workers to GUI      
+        self.display.add_subscriber(self.viewer)
+        self.viewer.configure_size(spec.pixels_per_line, spec.lines_per_frame)
 
         # Link workers to GUI control elements
         self.display_control.link_display_worker(self.display)  
-        self.display_canvas.add_acquisition_spec(self.acquisition.spec)
+        #self.display_canvas.add_acquisition_spec(self.acquisition.spec)
 
         if log_frames:
             # Create logger worker, connect, and start
@@ -208,51 +191,36 @@ class ReferenceGUI(ctk.CTk):
                 self.raw_logger.basename = self.logger.basename + "_raw"
                 self.raw_logger.frames_per_file = self.logger.frames_per_file
                 self.raw_logger.start()
+        else:
+            self.logger = None
 
         self.display.start()
         self.processor.start()
         self.acquisition.start()
 
+        # Start polling for acquisition ended, trigger controls update if ended
+        self.poll_acquisition_status()
+
+    def poll_acquisition_status(self, interval_ms: int = 100):
+        if not self.acquisition.is_alive():
+            self.stop_acquisition() 
+            # terminates the polling loop
+        else:
+            self.after(interval_ms, self.poll_acquisition_status, interval_ms)
+
     def stop_acquisition(self):
+        # Send stop to all threads, wait until all complet
         self.acquisition.stop()
+        self.processor.stop()
+        self.display.stop()
+        if self.logger:
+            self.logger.stop()
         self.acquisition.join()
         self.processor.join()
         self.display.join()
+        if self.logger:
+            self.logger.join()
         self.acquisition_control.stopped()
-
-    def poll_queue(self):
-        try:
-            if self.display:
-                image = self.inbox.get(timeout=0.01)
-
-                if image is None:
-                    self.stop_acquisition()
-                else:
-                    self.update_display(image)
-        except queue.Empty:
-            pass
-        finally:
-            self.after(16, self.poll_queue)
-
-    def update_display(self, image: np.ndarray):
-        self.display_count += 1
-        t0 = time.perf_counter()
-        pil_img = Image.fromarray(image, mode="RGB")
-
-        t1 = time.perf_counter()       
-        if self.tk_image is None:
-            # Create the PhotoImage only once per acquisition 
-            self.tk_image = ImageTk.PhotoImage(pil_img)
-            self.canvas_image = self.display_canvas.create_image(0, 0, anchor="nw", image=self.tk_image)
-        else:
-            # Update the existing PhotoImage in-place
-            self.tk_image.paste(pil_img)
-
-        t2 = time.perf_counter()
-        self.display_canvas.itemconfig(self.canvas_image, image=self.tk_image)
-        t3 = time.perf_counter()
-
-        print(f"Image {self.display_count} | Canvas update: {1000*(t3-t2):.1f}ms | PhotoImage: {1000*(t2-t1):.1f}ms | PIL: {1000*(t1-t0):.1f}ms" )
 
     def toggle_mode(self):
         current_mode = ctk.get_appearance_mode()

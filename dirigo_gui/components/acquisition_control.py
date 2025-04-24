@@ -31,11 +31,11 @@ class AcquisitionControl(ctk.CTkFrame):
 
         self.preview_button = ctk.CTkButton(
             self, 
-            text="FOCUS", 
+            text="PREVIEW", 
             font=ctk.CTkFont(size=self.BUTTON_FONT_SIZE, weight="bold"),
             width=self.BUTTON_WIDTH,
             height=self.BUTTON_HEIGHT,
-            command=lambda: self.start('focus')
+            command=lambda: self.start('preview')
         )
         self.preview_button.grid(row=1, column=0, padx=5, pady=5)
 
@@ -71,7 +71,7 @@ class AcquisitionControl(ctk.CTkFrame):
 
 
     def start(self, type: str):
-        if type == 'focus':
+        if type == 'preview':
             self._preview_running = not self._preview_running
 
             # enable/disable capture, stack
@@ -91,7 +91,7 @@ class AcquisitionControl(ctk.CTkFrame):
         elif type == 'capture':
             self._series_running = not self._series_running
 
-            # enable/disable focus, stack
+            # enable/disable preview, stack
             self.preview_button.configure(
                 state=ctk.DISABLED if self._series_running else ctk.NORMAL
             )
@@ -108,7 +108,7 @@ class AcquisitionControl(ctk.CTkFrame):
         elif type == 'stack':
             self._stack_running = not self._stack_running
 
-            # enable/disable focus, capture
+            # enable/disable preview, capture
             self.preview_button.configure(
                 state=ctk.DISABLED if self._stack_running else ctk.NORMAL
             )
