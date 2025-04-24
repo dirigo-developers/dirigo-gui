@@ -120,6 +120,9 @@ class ReferenceGUI(ctk.CTk):
         )
         self.viewer.pack(expand=True, padx=10, pady=10)
 
+        self.bind("<Control-equal>", lambda e: self.viewer.cycle_zoom(+1))
+        self.bind("<Control-minus>", lambda e: self.viewer.cycle_zoom(-1))
+
     def _restore_settings(self):
         config_dir = Path(user_config_dir("Dirigo-GUI", "Dirigo"))
 

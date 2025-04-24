@@ -1,5 +1,6 @@
 from typing import Callable, Iterable, Optional
 import queue
+import time
 
 import customtkinter as ctk
 from PIL import Image, ImageTk
@@ -11,6 +12,8 @@ class ImageViewer(ctk.CTkFrame):
     """
     Stand-alone viewer widget for numpy images (RGB).
     """
+    ZOOMS = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 4.0]
+
     def __init__(self, parent, width: int, height: int, *, bg: str = "black"):
         
         super().__init__(parent)
@@ -24,33 +27,66 @@ class ImageViewer(ctk.CTkFrame):
         #self._callbacks: dict[str, Iterable[Callable]] = {}
         self._overlay_items: dict[str, int] = {}
 
+        self._zoom_idx = 3 # default = 100%
+        self._zoom     = self.ZOOMS[self._zoom_idx]
+
+        # save last frame so we can redraw quickly
+        self._native_frame: Optional[np.ndarray] = None
+
     def show(self, frame: np.ndarray) -> None:
         """Display an image."""
         if (not isinstance(frame, np.ndarray)
             or frame.dtype != np.uint8
             or frame.shape[2] != 3):
             raise ValueError("ImageView can only display 8-bit RGB numpy images.")
+        self._native_frame = frame  # cache native-res copy
 
-        pil_img = Image.fromarray(frame, mode="RGB")
+        if self._zoom != 1.0:
+            pil_img = Image.fromarray(frame, mode="RGB").resize(
+                (int(frame.shape[1] * self._zoom),
+                 int(frame.shape[0] * self._zoom)),
+                resample=Image.Resampling.NEAREST   # or BILINEAR
+            )
+        else:
+            pil_img = Image.fromarray(frame, mode="RGB")
 
         if self._photo is None:                 # create PhotoImage on 1st call
             self._photo = ImageTk.PhotoImage(pil_img)
             self._canvas_img = self._canvas.create_image(
                 0, 0, anchor="nw", image=self._photo, tags=("bitmap",)
             )
-            self._canvas.tag_raise("overlay")
+            self._canvas.tag_lower("bitmap") # To keep overlay on top if exists
         else:                                   # subsequent calls: in-place
             self._photo.paste(pil_img)
             self._canvas.itemconfig(self._canvas_img, image=self._photo)
 
     def configure_size(self, width: int, height: int) -> None:
-        self._canvas.config(width=width, height=height)
+        self._canvas.config(
+            width=int(width * self._zoom), 
+            height=int(height * self._zoom)
+        )
 
         # Trigger regneration of the PhotoImage
         if self._canvas_img is not None:
             self._canvas.delete(self._canvas_img)
             self._canvas_img = None
             self._photo = None
+
+    def set_zoom(self, factor: float) -> None:
+        """Set an arbitrary zoom factor and redraw."""
+        self._zoom = max(0.1, factor)
+        self._redraw_last_frame()
+        self._rescale_overlays()
+
+    def cycle_zoom(self, direction: int = +1) -> None:
+        """direction = +1 ➞ next zoom level, -1 ➞ previous."""
+        new_zoom = self._zoom_idx + direction
+        if not (0 <= new_zoom < len(self.ZOOMS)):
+            return # ignore out of range
+        self._zoom_idx = new_zoom
+        self._zoom = self.ZOOMS[self._zoom_idx]
+        self._redraw_last_frame()
+        self._rescale_overlays()
 
     # def bind_events(self, **events) -> None:
     #     """
@@ -127,10 +163,48 @@ class ImageViewer(ctk.CTkFrame):
         else:
             self._canvas.delete(item)
 
+    def _redraw_last_frame(self):
+        if self._native_frame is not None:
+            self.configure_size(
+                width=int(self._native_frame.shape[1]),
+                height=int(self._native_frame.shape[0])
+            )
+            self._paste(self._native_frame)
+
+    def _paste(self, frame: np.ndarray, is_resize: bool = False):
+        """internal: handles the Pillow→PhotoImage transfer"""
+        if self._zoom != 1.0:
+            # Pillow resize keeps CPU cost low (<3 ms for 1024×1024→2×)
+            pil_img = Image.fromarray(frame, mode="RGB").resize(
+                (int(frame.shape[1] * self._zoom),
+                 int(frame.shape[0] * self._zoom)),
+                resample=Image.Resampling.NEAREST   # or BILINEAR
+            )
+        else:
+            pil_img = Image.fromarray(frame, mode="RGB")
+
+        if self._photo is None:
+            self._photo = ImageTk.PhotoImage(pil_img)
+            self._canvas_img = self._canvas.create_image(
+                0, 0, anchor="nw", image=self._photo, tags=("bitmap",)
+            )
+            self._canvas.tag_lower("bitmap")        # keep overlays on top
+        else:
+            self._photo.paste(pil_img)
+
+    def _rescale_overlays(self):
+        """Multiply every overlay's coords by the current zoom factor."""
+        for item in self._canvas.find_withtag("overlay"):
+            x0, y0, x1, y1 = self._canvas.coords(item)
+            self._canvas.coords(
+                item, x0 * self._zoom, y0 * self._zoom,
+                      x1 * self._zoom, y1 * self._zoom
+            )
+
 
 class LiveViewer(ImageViewer):
     """Viewer widget with polling for automatic image updates."""
-    POLLING_INTERVAL_MS = 16
+    POLLING_INTERVAL_MS = 10
 
     def __init__(self, parent, width: int, height: int, *, bg: str = "black"):
         super().__init__(parent, width, height, bg=bg)
@@ -140,16 +214,20 @@ class LiveViewer(ImageViewer):
         self.poll_queue()
 
     def poll_queue(self):
+        #t0 = time.perf_counter()
+        latest_img = None
         try:
-            image: np.ndarray = self.inbox.get(block=False)
-
-            if image is None:           # codes for end of acquisition stream
-                pass
-            else:
-                self.show(image)
-
+            while True: # drain the queue, read until queue empty
+                latest_img: np.ndarray = self.inbox.get_nowait()
         except queue.Empty:
             pass
-        
-        finally:
-            self.after(self.POLLING_INTERVAL_MS, self.poll_queue)
+
+        if latest_img is None:
+            pass
+        else:
+            self.show(latest_img)
+        t1 = time.perf_counter()
+
+        #T = max(self.POLLING_INTERVAL_MS - int(1000*(t1-t0)), 0)
+        #print("DELAY TIME (ms):", T)
+        self.after(self.POLLING_INTERVAL_MS, self.poll_queue)
