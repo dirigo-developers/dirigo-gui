@@ -80,33 +80,36 @@ class ZControl(ctk.CTkFrame):
 
 class NumericEntries(ctk.CTkFrame):
     ENTRY_WIDTH = 52
-    def __init__(self, parent):
+    def __init__(self, parent, axes: list = ["x", "y", "z"]):
         super().__init__(parent, fg_color="transparent")
 
         # Create entries
         self.x = LabeledDisplay(
             self,
             text="X:",
-            default="10 mm",
+            default="x mm",
             width=self.ENTRY_WIDTH
         )
-        self.x.grid(row=0, column=0, padx=2)
+        if "x" in axes:
+            self.x.grid(row=0, column=0, padx=2)
 
         self.y = LabeledDisplay(
             self,
             text="Y:",
-            default="20 mm",
+            default="y mm",
             width=self.ENTRY_WIDTH
         )
-        self.y.grid(row=0, column=1, padx=2)
+        if "y" in axes:
+            self.y.grid(row=0, column=1, padx=2)
 
         self.z = LabeledDisplay(
             self,
             text="Z:",
-            default="30 um",
+            default="z um",
             width=self.ENTRY_WIDTH
         )
-        self.z.grid(row=0, column=2, padx=2)
+        if "z" in axes:
+            self.z.grid(row=0, column=2, padx=2)
 
 
 
@@ -118,6 +121,8 @@ class StageControl(ctk.CTkFrame):
         self._stage = stage
         self._objective_scanner = objective_scanner
         self._is_pressed = False
+
+        axes = []
         
         stage_label = ctk.CTkLabel(self, text="Stage", anchor="w", font=ctk.CTkFont(size=16, weight='bold'))
         stage_label.pack(fill="x", padx=10, pady=1)
@@ -125,13 +130,17 @@ class StageControl(ctk.CTkFrame):
         buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.xy = XYControl(self, buttons_frame, fg_color="transparent")
         self.xy.pack(side=ctk.LEFT, expand=True, fill="x", padx=10)
+        axes.append("x")
+        axes.append("y")
 
         self.z = ZControl(self, buttons_frame, fg_color="transparent")
-        self.z.pack(side=ctk.RIGHT, fill="x", padx=10)
+        if self._objective_scanner:
+            self.z.pack(side=ctk.RIGHT, fill="x", padx=10)
+            axes.append("z")
 
         buttons_frame.pack(fill="x", padx=5, pady=3)
 
-        self.xyz_entries = NumericEntries(self)
+        self.xyz_entries = NumericEntries(self, axes=axes)
         self.xyz_entries.pack(fill="x", padx=5, pady=3)
 
         # Start polling
@@ -140,7 +149,8 @@ class StageControl(ctk.CTkFrame):
     def poll_stage(self):
         self.xyz_entries.x.update(self._stage.x.position.with_unit("mm"))
         self.xyz_entries.y.update(self._stage.y.position.with_unit("mm"))
-        self.xyz_entries.z.update(self._objective_scanner.position.with_unit("μm"))
+        if self._objective_scanner:
+            self.xyz_entries.z.update(self._objective_scanner.position.with_unit("μm"))
         
         self.after(self.POLLING_INTERVAL_MS, self.poll_stage)
 
