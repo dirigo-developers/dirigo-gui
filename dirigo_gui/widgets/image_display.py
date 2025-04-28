@@ -1,10 +1,12 @@
-from typing import Callable, Iterable, Optional
+from typing import Optional
 import queue
 import time
 
 import customtkinter as ctk
 from PIL import Image, ImageTk
 import numpy as np
+
+from dirigo.sw_interfaces.display import DisplayProduct
 
 
 
@@ -41,15 +43,21 @@ class ImageViewer(ctk.CTkFrame):
             raise ValueError("ImageView can only display 8-bit RGB numpy images.")
         self._native_frame = frame  # cache native-res copy
 
+        t0 = time.perf_counter()
         if self._zoom != 1.0:
+            
             pil_img = Image.fromarray(frame, mode="RGB").resize(
                 (int(frame.shape[1] * self._zoom),
                  int(frame.shape[0] * self._zoom)),
                 resample=Image.Resampling.NEAREST   # or BILINEAR
             )
+            
         else:
             pil_img = Image.fromarray(frame, mode="RGB")
+        t1 = time.perf_counter()
+        print("RESIZE", t1-t0)
 
+        t0 = time.perf_counter()
         if self._photo is None:                 # create PhotoImage on 1st call
             self._photo = ImageTk.PhotoImage(pil_img)
             self._canvas_img = self._canvas.create_image(
@@ -59,6 +67,8 @@ class ImageViewer(ctk.CTkFrame):
         else:                                   # subsequent calls: in-place
             self._photo.paste(pil_img)
             self._canvas.itemconfig(self._canvas_img, image=self._photo)
+        t1 = time.perf_counter()
+        print("DRAW BITMAP", t1-t0)
 
     def configure_size(self, width: int, height: int) -> None:
         self._canvas.config(
@@ -204,7 +214,7 @@ class ImageViewer(ctk.CTkFrame):
 
 class LiveViewer(ImageViewer):
     """Viewer widget with polling for automatic image updates."""
-    POLLING_INTERVAL_MS = 10
+    POLLING_INTERVAL_MS = 16
 
     def __init__(self, parent, width: int, height: int, *, bg: str = "black"):
         super().__init__(parent, width, height, bg=bg)
@@ -214,20 +224,24 @@ class LiveViewer(ImageViewer):
         self.poll_queue()
 
     def poll_queue(self):
-        #t0 = time.perf_counter()
-        latest_img = None
-        try:
-            while True: # drain the queue, read until queue empty
-                latest_img: np.ndarray = self.inbox.get_nowait()
-        except queue.Empty:
-            pass
+        
+        disp_product = None
 
-        if latest_img is None:
-            pass
-        else:
-            self.show(latest_img)
-        t1 = time.perf_counter()
+        while True:
+            try:
+                if disp_product is not None:
+                    disp_product._release()
+                disp_product: DisplayProduct = self.inbox.get_nowait()
+            except queue.Empty:
+                break # queue drained
+
+        if disp_product is not None:
+            #t0 = time.perf_counter()
+            self.show(disp_product.frame)
+            #t1 = time.perf_counter()
+            #print(f"TK DISP: {1000*(t1-t0):.3f}")
 
         #T = max(self.POLLING_INTERVAL_MS - int(1000*(t1-t0)), 0)
         #print("DELAY TIME (ms):", T)
+        
         self.after(self.POLLING_INTERVAL_MS, self.poll_queue)
