@@ -35,7 +35,7 @@ class DetectorFrame(ctk.CTkFrame):
             
             min_slider_label = ctk.CTkLabel(slider_frame, text="Gain:")
             min_slider_label.grid(row=0, column=0, padx=5)
-            self.entry = ctk.CTkEntry(slider_frame, width=50)
+            self.entry = ctk.CTkEntry(slider_frame, width=56)
             self.entry.insert(0, f"{self._detector.gain}")
             self.entry.grid(row=0, column=2, padx=5, pady=2)
 
@@ -71,9 +71,14 @@ class DetectorFrame(ctk.CTkFrame):
 
     def update_entry(self, value):
         """Update the gain entry box and display_min property."""
-        self.entry.delete(0, ctk.END)
-        self.entry.insert(0, str(int(value))) # How to handle ints and units.Voltage?
-        self._detector.gain = int(value) # Handle NotImplementedError?
+        if isinstance(self._detector.gain_range, units.VoltageRange):
+            self.entry.delete(0, ctk.END)
+            self.entry.insert(0, str(units.Voltage(value)))
+            self._detector.gain = units.Voltage(value)
+        else:
+            self.entry.delete(0, ctk.END)
+            self.entry.insert(0, str(int(value)))
+            self._detector.gain = int(value)
 
     def update_slider(self):
         """Update the slider when the entry box value changes."""
