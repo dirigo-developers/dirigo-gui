@@ -179,26 +179,23 @@ class ReferenceGUI(ctk.CTk):
 
         # Link workers to GUI control elements
         self.display_control.link_display_worker(self.display)  
-        #self.display_canvas.add_acquisition_spec(self.acquisition.spec)
 
         if log_frames:
             # Create logger worker, connect, and start
             self.logger = self.dirigo.logger_factory(self.processor)
             
             self.logger_control.link_logger_worker(self.logger)
-            self.logger.start()
 
             if self.logger_control.save_raw_checkbox.get():
                 # Directly connect the Acquisition to raw Logger
                 self.raw_logger = self.dirigo.logger_factory(self.acquisition)
                 self.raw_logger.basename = self.logger.basename + "_raw"
                 self.raw_logger.frames_per_file = self.logger.frames_per_file
-                self.raw_logger.start()
         else:
             self.logger = None
 
-        self.display.start()
-        self.processor.start()
+        # self.processor.start()
+        # self.display.start()
         self.acquisition.start()
 
         # Start polling for acquisition ended, trigger controls update if ended

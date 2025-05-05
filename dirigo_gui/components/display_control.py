@@ -23,7 +23,7 @@ class ChannelFrame(ctk.CTkFrame):
 
         # Slider limits -- set up a dummy acquisition/processor to return data range min/max 
         acq = dirigo.acquisition_factory('frame')
-        proc = dirigo.processor_factory(acq)
+        proc = dirigo.processor_factory(acq, auto_start=False)
         self.slider_min = proc.data_range.min
         self.slider_max = proc.data_range.max
 

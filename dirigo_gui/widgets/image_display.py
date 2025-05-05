@@ -55,7 +55,7 @@ class ImageViewer(ctk.CTkFrame):
         else:
             pil_img = Image.fromarray(frame, mode="RGB")
         t1 = time.perf_counter()
-        print("RESIZE", t1-t0)
+        #print("RESIZE", t1-t0)
 
         t0 = time.perf_counter()
         if self._photo is None:                 # create PhotoImage on 1st call
@@ -68,7 +68,7 @@ class ImageViewer(ctk.CTkFrame):
             self._photo.paste(pil_img)
             self._canvas.itemconfig(self._canvas_img, image=self._photo)
         t1 = time.perf_counter()
-        print("DRAW BITMAP", t1-t0)
+        #print("DRAW BITMAP", t1-t0)
 
     def configure_size(self, width: int, height: int) -> None:
         self._canvas.config(

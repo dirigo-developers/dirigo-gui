@@ -471,17 +471,15 @@ class FrameSpecificationControl(ctk.CTkFrame):
     
     def generate_spec(self) -> FrameAcquisitionSpec:
         return FrameAcquisitionSpec(
-            bidirectional_scanning=(self.directions_var.get() == "Bidirectional"),
-            line_width=self._frame_width,
-            frame_height=self._frame_height,
-            pixel_time=self._pixel_time,
-            pixel_size=self._pixel_width,
-            pixel_height=self._pixel_height,
-            fill_fraction = self._fill_fraction,
-            buffers_per_acquisition=self._frames_per_acquisition,
-            buffers_allocated=4, # TODO not hardcode
-            digitizer_profile = "default",
-            flyback_periods=32 # TODO update this
+            bidirectional_scanning  = (self.directions_var.get() == "Bidirectional"),
+            line_width              = self._frame_width,
+            frame_height            = self._frame_height,
+            pixel_time              = self._pixel_time,
+            pixel_size              = self._pixel_width,
+            pixel_height            = self._pixel_height,
+            fill_fraction           = self._fill_fraction,
+            buffers_per_acquisition = self._frames_per_acquisition,
+            flyback_periods         = 32 # TODO update this
         )
 
 
@@ -598,8 +596,6 @@ class StackSpecificationControl(ctk.CTkFrame):
             pixel_size             = f._pixel_width,
             pixel_height           = f._pixel_height,
             fill_fraction          = f._fill_fraction,
-            buffers_allocated      = 4,          # TODO
-            digitizer_profile      = "default",
             flyback_periods        = 32,         # TODO
             lower_limit            = m.lower,
             upper_limit            = m.upper,
