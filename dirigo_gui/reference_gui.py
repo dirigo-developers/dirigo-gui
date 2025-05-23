@@ -8,7 +8,6 @@ import customtkinter as ctk
 
 from dirigo.main import Dirigo
 from dirigo.sw_interfaces import Acquisition, Processor, Display
-from dirigo.plugins.acquisitions import FrameAcquisitionSpec
 
 from dirigo_gui.widgets.image_display import LiveViewer
 from dirigo_gui.components.detector_control import DetectorSetControl
@@ -27,9 +26,6 @@ class LeftPanel(ctk.CTkFrame):
         super().__init__(parent, width=200, corner_radius=0)
         self._start_callback = start_callback
         self._stop_callback = stop_callback
-        
-        #self._hw = controller.hw
-        #self._objective_scanner = controller.hw.objective_scanner
 
         self.acquisition_control = AcquisitionControl(self, self._start_callback, self._stop_callback)
         
@@ -40,17 +36,17 @@ class LeftPanel(ctk.CTkFrame):
 
         self.stage_control = StageControl(
             self, 
-            controller.hw.stage, 
-            controller.hw.objective_scanner, 
+            controller.hw.stages, 
+            controller.hw.objective_z_scanner, 
         )
 
         self.acquisition_control.pack(pady=10, padx=10, fill="x")
         
         self.frame_specification.pack(pady=10, padx=10, fill="x")
-        if controller.hw.objective_scanner:
+        if controller.hw.objective_z_scanner:
             self.stack_specification.pack(pady=10, padx=10, fill="x")
         self.timing_indicator.pack(pady=10, padx=10, fill="x")
-        if controller.hw.stage:
+        if controller.hw.stages:
             self.stage_control.pack(side=ctk.BOTTOM, fill="x", padx=10, pady=5)
 
 
@@ -153,49 +149,47 @@ class ReferenceGUI(ctk.CTk):
         except FileNotFoundError:
             warnings.warn("Could not find GUI settings file. Using defaults.", UserWarning)
 
-    def start_acquisition(self, log_frames: bool = False, acq_type: str = 'frame'):
-        if acq_type not in {'frame', 'stack'}:
+    def start_acquisition(self, log_frames: bool = False, acq_name: str = 'raster_frame'):
+        if acq_name not in {'raster_frame', 'raster_stack'}:
             raise ValueError("Unsupported Acquistion type: {acq_type}") 
         self.display_count = 0
         self.tk_image = None # resets the previous image if it exists
 
         # Over-ride default spec with settings from the GUI
-        if acq_type == 'frame':
+        if acq_name == 'raster_frame':
             spec = self.frame_specification.generate_spec()
-        elif acq_type == 'stack':
+        elif acq_name == 'raster_stack':
             spec = self.stack_specification.generate_spec()
         if not log_frames:
             # in focus mode, don't save frames and run indefinitely
             spec.buffers_per_acquisition = float('inf')
 
         # Create workers
-        self.acquisition = self.dirigo.acquisition_factory(acq_type, spec=spec)
-        self.processor = self.dirigo.processor_factory(self.acquisition)
-        self.display = self.dirigo.display_factory(self.processor)            
+        self.acquisition = self.dirigo.make("acquisition", acq_name, spec=spec)
+        self.processor   = self.dirigo.make("processor", acq_name, upstream=self.acquisition)
+        self.display     = self.dirigo.make("display", "frame", upstream=self.processor)
 
-        # Connect Workers to GUI      
+        # Connect Display(Worker) to GUI LiveViewer
         self.display.add_subscriber(self.viewer)
         self.viewer.configure_size(spec.pixels_per_line, spec.lines_per_frame)
 
         # Link workers to GUI control elements
         self.display_control.link_display_worker(self.display)  
 
-        if log_frames:
-            # Create logger worker, connect, and start
-            self.logger = self.dirigo.logger_factory(self.processor)
-            
-            self.logger_control.link_logger_worker(self.logger)
-
+        if log_frames:        
             if self.logger_control.save_raw_checkbox.get():
-                # Directly connect the Acquisition to raw Logger
-                self.raw_logger = self.dirigo.logger_factory(self.acquisition)
-                self.raw_logger.basename = self.logger.basename + "_raw"
-                self.raw_logger.frames_per_file = self.logger.frames_per_file
+                # To save 'raw', directly connect the Acquisition to Logger
+                self.logger = self.dirigo.make("logger", "tiff", upstream=self.acquisition)
+                self.logger.basename = self.logger.basename + "_raw"
+                self.logger.frames_per_file = self.logger.frames_per_file
+            else:
+                # Save processed (e.g. resampled/dewarped) frames by connecting to Processor
+                self.logger = self.dirigo.make("logger", "tiff", upstream=self.processor)
+
+            self.logger_control.link_logger_worker(self.logger)
         else:
             self.logger = None
 
-        # self.processor.start()
-        # self.display.start()
         self.acquisition.start()
 
         # Start polling for acquisition ended, trigger controls update if ended
@@ -209,12 +203,13 @@ class ReferenceGUI(ctk.CTk):
             self.after(interval_ms, self.poll_acquisition_status, interval_ms)
 
     def stop_acquisition(self):
-        # Send stop to all threads, wait until all complet
+        # Send stop to all threads, wait until all complete
         self.acquisition.stop()
         self.processor.stop()
         self.display.stop()
         if self.logger:
             self.logger.stop()
+
         self.acquisition.join()
         self.processor.join()
         self.display.join()
