@@ -6,7 +6,7 @@ from dirigo.hw_interfaces.scanner import ObjectiveZScanner
 from dirigo_gui.components.common import LabeledDisplay
 
 
-XY_VELOCITY = units.Velocity("2 mm/s")
+XY_VELOCITY = units.Velocity("2 mm/s") # TODO set these somewhere else
 Z_VELOCITY = units.Velocity("0.03 mm/s")
 
 

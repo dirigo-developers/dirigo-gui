@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import customtkinter as ctk
 from tkinter import filedialog
 
@@ -29,7 +31,7 @@ class LoggerControl(ctk.CTkFrame):
         # Frames per File
         frames_per_file_label = ctk.CTkLabel(self, text="Frames/File:", font=ctk.CTkFont(size=14, weight="bold"))
         frames_per_file_label.grid(row=2, column=0, sticky="e", padx=5, pady=2)
-        self._frames_per_file_var = ctk.StringVar(value=int(self.frames_per_file))
+        self._frames_per_file_var = ctk.StringVar(value=str(self.frames_per_file))
         self._frames_per_file_entry = ctk.CTkEntry(self, textvariable=self._frames_per_file_var, width=70)
         self._frames_per_file_entry.grid(row=2, column=1, padx=5, pady=2, sticky="ew")
         self._frames_per_file_entry.bind("<Return>", self._validate_frames_per_file_input)  # Enter key
@@ -76,7 +78,7 @@ class LoggerControl(ctk.CTkFrame):
 
     def link_logger_worker(self, logger_worker: Logger):
         """Transfer logger GUI settings to the logger worker (thread)."""
-        logger_worker.save_path = self.save_path
+        logger_worker.save_path = Path(self.save_path)
         logger_worker.basename = self.basename_entry.get()
         logger_worker.frames_per_file = int(self._frames_per_file_entry.get())
 

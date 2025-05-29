@@ -71,6 +71,8 @@ class DetectorFrame(ctk.CTkFrame):
 
     def update_entry(self, value):
         """Update the gain entry box and display_min property."""
+        if self.entry is None:
+            raise RuntimeError("Entry not initialized")
         if isinstance(self._detector.gain_range, units.VoltageRange):
             self.entry.delete(0, ctk.END)
             self.entry.insert(0, str(units.Voltage(value)))
@@ -82,6 +84,8 @@ class DetectorFrame(ctk.CTkFrame):
 
     def update_slider(self):
         """Update the slider when the entry box value changes."""
+        if self.slider is None or self.entry is None:
+            raise RuntimeError("Slider and/or entry not initialized")
         try:
             value = self.clamp_value(self.entry.get())
             self.slider.set(value)

@@ -110,7 +110,7 @@ class ImageViewer(ctk.CTkFrame):
     #             self._canvas.bind(sequence,
     #                 lambda e, cb=callback: cb(e, e.x, e.y))
 
-    def add_overlay(self, name: str, kind: str = "rect",
+    def add_overlay(self, name: str, kind: str = "rect",        # TODO remove overlays
                     *, outline="yellow", width=2, **coords):
         """
         name   - unique key so you can update/remove later
@@ -142,7 +142,7 @@ class ImageViewer(ctk.CTkFrame):
         else:
             raise ValueError("unknown overlay kind")
 
-        self._overlay_items[name] = item
+        self._overlay_items[name] = item # type: ignore
         self._canvas.tag_raise("overlay")          # keep on top
 
     def update_overlay(self, name: str, **coords):
@@ -205,7 +205,7 @@ class ImageViewer(ctk.CTkFrame):
     def _rescale_overlays(self):
         """Multiply every overlay's coords by the current zoom factor."""
         for item in self._canvas.find_withtag("overlay"):
-            x0, y0, x1, y1 = self._canvas.coords(item)
+            x0, y0, x1, y1 = self._canvas.coords(item) # type: ignore
             self._canvas.coords(
                 item, x0 * self._zoom, y0 * self._zoom,
                       x1 * self._zoom, y1 * self._zoom
@@ -218,20 +218,18 @@ class LiveViewer(ImageViewer):
 
     def __init__(self, parent, width: int, height: int, *, bg: str = "black"):
         super().__init__(parent, width, height, bg=bg)
-        self.inbox = queue.Queue()   # provides inbox for Workers to publish to
+        self._inbox = queue.Queue()   # provides inbox for Workers to publish to
 
         # Start polling
         self.poll_queue()
 
     def poll_queue(self):
-        
-        disp_product = None
-
+        disp_product: Optional[DisplayProduct] = None
         while True:
             try:
                 if disp_product is not None:
                     disp_product._release()
-                disp_product: DisplayProduct = self.inbox.get_nowait()
+                disp_product = self._inbox.get_nowait() # TODO, Worker class has method to recieve product, recerate here?
             except queue.Empty:
                 break # queue drained
 

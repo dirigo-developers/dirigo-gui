@@ -2,6 +2,7 @@ import queue
 from pathlib import Path
 import toml
 import warnings
+from typing import Optional
 
 from platformdirs import user_config_dir
 import customtkinter as ctk
@@ -76,9 +77,9 @@ class ReferenceGUI(ctk.CTk):
 
         self.dirigo = dirigo_controller
 
-        self.acquisition: Acquisition = None
-        self.processor: Processor = None
-        self.display: Display = None
+        self.acquisition: Optional[Acquisition] = None
+        self.processor: Optional[Processor] = None
+        self.display: Optional[Display] = None
         self.inbox = queue.Queue() # to receive queued data from Display
 
         self.title("Dirigo Reference GUI")
@@ -162,7 +163,7 @@ class ReferenceGUI(ctk.CTk):
             spec = self.stack_specification.generate_spec()
         if not log_frames:
             # in focus mode, don't save frames and run indefinitely
-            spec.buffers_per_acquisition = float('inf')
+            spec.buffers_per_acquisition = -1 # -1 codes for infinite
 
         # Create workers
         self.acquisition = self.dirigo.make("acquisition", acq_name, spec=spec)
@@ -170,7 +171,7 @@ class ReferenceGUI(ctk.CTk):
         self.display     = self.dirigo.make("display", "frame", upstream=self.processor)
 
         # Connect Display(Worker) to GUI LiveViewer
-        self.display.add_subscriber(self.viewer)
+        self.display.add_subscriber(self.viewer) # type: ignore
         self.viewer.configure_size(spec.pixels_per_line, spec.lines_per_frame)
 
         # Link workers to GUI control elements
@@ -196,6 +197,8 @@ class ReferenceGUI(ctk.CTk):
         self.poll_acquisition_status()
 
     def poll_acquisition_status(self, interval_ms: int = 100):
+        if self.acquisition is None:
+            raise RuntimeError("Acquisition not initialized")
         if not self.acquisition.is_alive():
             self.stop_acquisition() 
             # terminates the polling loop
@@ -203,17 +206,22 @@ class ReferenceGUI(ctk.CTk):
             self.after(interval_ms, self.poll_acquisition_status, interval_ms)
 
     def stop_acquisition(self):
+        if self.acquisition is None:
+            raise RuntimeError("Acquisition not initialized")
+        if self.processor is None:
+            raise RuntimeError("Processor not initialized")
+        if self.display is None:
+            raise RuntimeError("Display not initialized")
         # Send stop to all threads, wait until all complete
         self.acquisition.stop()
         self.processor.stop()
-        self.display.stop()
-        if self.logger:
-            self.logger.stop()
+        self.display.stop()         
 
         self.acquisition.join()
         self.processor.join()
         self.display.join()
-        if self.logger:
+        if self.logger is not None:
+            self.logger.stop()
             self.logger.join()
         self.acquisition_control.stopped()
 

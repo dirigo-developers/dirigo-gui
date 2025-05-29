@@ -1,3 +1,5 @@
+from typing import Optional
+
 import customtkinter as ctk
 
 from dirigo.main import Dirigo
@@ -19,7 +21,7 @@ class ChannelFrame(ctk.CTkFrame):
         """Constructs a frame with channel display properties."""
         super().__init__(parent, corner_radius=10, fg_color="transparent")
         self.index = channel_index
-        self._display_channel: DisplayChannel = None # A display channel object is linked to this later
+        self._display_channel: Optional[DisplayChannel] = None # A display channel object is linked to this later
 
         # Slider limits -- set up a dummy acquisition/processor to return data range min/max 
         acq = dirigo.make("acquisition", "raster_frame")
@@ -222,7 +224,7 @@ class DisplayControl(ctk.CTkFrame):
         #super().__init__(parent, fg_color="transparent")
         super().__init__(parent)
         self.dirigo = dirigo
-        self._display_worker: Display = None
+        self._display_worker: Optional[Display] = None
 
         # Make title label
         title_label = ctk.CTkLabel(self, text=title, font=ctk.CTkFont(size=16, weight="bold"))
@@ -271,7 +273,7 @@ class DisplayControl(ctk.CTkFrame):
             self.gamma.insert(0, str(self._display_worker.gamma))
             self._display_worker.update_display()
         else:
-            # If no display worker has been linked, we need to validate the value here
+            # If no display worker has been linked, we need to validate the value here (rather than let worker do it)
             try:
                 new_gamma = float(self.gamma.get())
                 if not (0 < new_gamma <= 10):
