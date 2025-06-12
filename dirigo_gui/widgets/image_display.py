@@ -235,7 +235,7 @@ class LiveViewer(ImageViewer):
 
         if disp_product is not None:
             #t0 = time.perf_counter()
-            self.show(disp_product.frame)
+            self.show(disp_product.data)
             #t1 = time.perf_counter()
             #print(f"TK DISP: {1000*(t1-t0):.3f}")
 

@@ -167,7 +167,7 @@ class ReferenceGUI(ctk.CTk):
 
         # Create workers
         self.acquisition = self.dirigo.make("acquisition", acq_name, spec=spec)
-        self.processor   = self.dirigo.make("processor", acq_name, upstream=self.acquisition)
+        self.processor   = self.dirigo.make("processor", "raster_frame", upstream=self.acquisition)
         self.display     = self.dirigo.make("display", "frame", upstream=self.processor)
 
         # Connect Display(Worker) to GUI LiveViewer

@@ -118,7 +118,7 @@ class AcquisitionControl(ctk.CTkFrame):
 
             if self._stack_running:
                 self.stack_button.configure(text="ABORT")
-                self._start_callback(acq_type="raster_stack", log_frames=True)
+                self._start_callback(acq_name="raster_stack", log_frames=True)
             else:
                 self._stop_callback()
 
