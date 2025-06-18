@@ -166,16 +166,18 @@ class ReferenceGUI(ctk.CTk):
             spec.buffers_per_acquisition = -1 # -1 codes for infinite
 
         # Create workers
-        self.acquisition = self.dirigo.make("acquisition", acq_name, spec=spec)
-        self.processor   = self.dirigo.make("processor", "raster_frame", upstream=self.acquisition)
-        self.display     = self.dirigo.make("display", "frame", upstream=self.processor)
+        self.acquisition = self.dirigo.make_acquisition(acq_name, spec=spec)
+        self.processor   = self.dirigo.make_processor("raster_frame", upstream=self.acquisition)
+        self.averager    = self.dirigo.make_processor("rolling_average", upstream=self.processor)
+        self.display     = self.dirigo.make_display_processor("frame", upstream=self.averager)
 
         # Connect Display(Worker) to GUI LiveViewer
         self.display.add_subscriber(self.viewer) # type: ignore
         self.viewer.configure_size(spec.pixels_per_line, spec.lines_per_frame)
 
         # Link workers to GUI control elements
-        self.display_control.link_display_worker(self.display)  
+        self.display_control.link_averager_worker(self.averager) # type: ignore
+        self.display_control.link_display_worker(self.display)   # type: ignore
 
         if log_frames:        
             if self.logger_control.save_raw_checkbox.get():

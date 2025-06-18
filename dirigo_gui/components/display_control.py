@@ -4,8 +4,9 @@ import customtkinter as ctk
 
 from dirigo.main import Dirigo
 from dirigo.sw_interfaces import Display
-from dirigo.sw_interfaces.display import ColorVector
-from dirigo.plugins.displays import DisplayChannel
+from dirigo.sw_interfaces.display import get_available_color_vector_names
+from dirigo.plugins.processors import RollingAverageProcessor
+from dirigo.plugins.displays import DisplayChannel, FrameDisplay, Gamma
 
 
 class ChannelFrame(ctk.CTkFrame):
@@ -42,8 +43,8 @@ class ChannelFrame(ctk.CTkFrame):
         # LUT Dropdown
         self.color_vector_var = ctk.StringVar(value="Blue")  # Default value
         self.color_vector_menu = ctk.CTkOptionMenu(
-            self, 
-            values=ColorVector.get_color_names(), 
+            self,
+            values=get_available_color_vector_names(), 
             variable=self.color_vector_var,
             command=self.update_color_vector
         )
@@ -113,7 +114,7 @@ class ChannelFrame(ctk.CTkFrame):
 
     def update_color_vector(self, new_vector: str):
         if self._display_channel:
-            self._display_channel.color_vector = ColorVector[new_vector.upper()]
+            self._display_channel.color_vector_name = new_vector
 
     def update_min_entry(self, value):
         """Update the min entry box and display_min property."""
@@ -183,9 +184,9 @@ class ChannelFrame(ctk.CTkFrame):
     def color_vector_name(self, new_color_vector_name: str):
         if not isinstance(new_color_vector_name, str):
             raise ValueError("`color_vector_name` must be set with a string value")
-        if new_color_vector_name.capitalize() not in ColorVector.get_color_names():
+        if new_color_vector_name.lower() not in get_available_color_vector_names():
             raise ValueError(f"Invalid ColorVector name: {new_color_vector_name}")
-        self.color_vector_var.set(new_color_vector_name.capitalize())
+        self.color_vector_var.set(new_color_vector_name)
 
     @property
     def min(self) -> int:
@@ -224,7 +225,8 @@ class DisplayControl(ctk.CTkFrame):
         #super().__init__(parent, fg_color="transparent")
         super().__init__(parent)
         self.dirigo = dirigo
-        self._display_worker: Optional[Display] = None
+        self._averager: Optional[RollingAverageProcessor] = None
+        self._display_worker: Optional[FrameDisplay] = None
 
         # Make title label
         title_label = ctk.CTkLabel(self, text=title, font=ctk.CTkFont(size=16, weight="bold"))
@@ -266,14 +268,18 @@ class DisplayControl(ctk.CTkFrame):
     def update_gamma(self):
         if self._display_worker:
             try:
-                self._display_worker.gamma = float(self.gamma.get())
+                new_gamma = float(self.gamma.get())
+                self._display_worker._transfer_function = Gamma(gamma=new_gamma)
+                self._display_worker._update_tf_lut()
             except:
                 pass
             self.gamma.delete(0, ctk.END)
-            self.gamma.insert(0, str(self._display_worker.gamma))
+            valid_gamma = self._display_worker._transfer_function.gamma # type: ignore
+            self.gamma.insert(0, str(valid_gamma))
             self._display_worker.update_display()
         else:
-            # If no display worker has been linked, we need to validate the value here (rather than let worker do it)
+            # If no display worker has been linked, we need to validate the 
+            # value here (rather than let worker do it)
             try:
                 new_gamma = float(self.gamma.get())
                 if not (0 < new_gamma <= 10):
@@ -285,18 +291,18 @@ class DisplayControl(ctk.CTkFrame):
                 self.gamma.insert(0, str(1.0))
 
     def update_average(self):
-        if self._display_worker:
+        if self._averager:
             try:
                 value = int(self.average.get())
                 if not (0 < value < 100):
                     raise ValueError
-                self._display_worker.n_frame_average = value
+                self._averager.n_frame_average = value
             except:
                 pass
             self.average.delete(0, ctk.END)
-            self.average.insert(0, str(self._display_worker.n_frame_average))
+            self.average.insert(0, str(self._averager.n_frame_average))
         else:
-            # If no display worker has been linked, we need to validate the value here
+            # If no averager worker has been linked, we need to validate the value here
             try:
                 value = int(self.average.get())
                 if not (0 < value < 100):
@@ -306,9 +312,12 @@ class DisplayControl(ctk.CTkFrame):
             except:
                 self.average.delete(0, ctk.END)
                 self.average.insert(0, str(1))
-            
+    
+    def link_averager_worker(self, averager: RollingAverageProcessor):
+        self._averager = averager
+        self._averager.n_frame_average = int(self.average.get())
 
-    def link_display_worker(self, display: Display):
+    def link_display_worker(self, display: FrameDisplay):
         """Links GUI properties to the dynamically generated Display worker."""
         self._display_worker = display
         
@@ -330,8 +339,7 @@ class DisplayControl(ctk.CTkFrame):
 
                 # Transfer GUI properties -> Display worker properties
                 display_channel.enabled = channel_frame.enabled_var.get()
-                display_channel.color_vector = \
-                    ColorVector[channel_frame.color_vector_var.get().upper()]
+                display_channel.color_vector_name = channel_frame.color_vector_var.get().lower()
                 display_channel.display_min = channel_frame.min 
                 display_channel.display_max = channel_frame.max
 
@@ -347,5 +355,4 @@ class DisplayControl(ctk.CTkFrame):
 
         # Pass misc Display settings to Display worker
         display.gamma = float(self.gamma.get())
-        display.n_frame_average = int(self.average.get())
                
