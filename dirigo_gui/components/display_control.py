@@ -245,7 +245,8 @@ class DisplayControl(ctk.CTkFrame):
         r = 0
 
         # Display gamma
-        gamma_label = ctk.CTkLabel(settings_grid_frame, text="Display Gamma:", font=ctk.CTkFont(size=14, weight="bold"))
+        gamma_label = ctk.CTkLabel(settings_grid_frame, text="Display Gamma:", 
+                                   font=ctk.CTkFont(size=14, weight="bold"))
         gamma_label.grid(row=r, column=0, padx=5, sticky="e")
         self.gamma = ctk.CTkEntry(settings_grid_frame, width=70)
         self.gamma.grid(row=r, pady=3, column=1, sticky='w')
@@ -254,7 +255,8 @@ class DisplayControl(ctk.CTkFrame):
         self.gamma.bind("<FocusOut>", lambda e: self.update_gamma())
         r += 1
 
-        average_label = ctk.CTkLabel(settings_grid_frame, text="Frames Averaged:", font=ctk.CTkFont(size=14, weight="bold"))
+        average_label = ctk.CTkLabel(settings_grid_frame, text="Frames Averaged:", 
+                                     font=ctk.CTkFont(size=14, weight="bold"))
         average_label.grid(row=r, column=0, padx=5, sticky="e")
         self.average = ctk.CTkEntry(settings_grid_frame, width=70)
         self.average.grid(row=r, pady=3, column=1, sticky='w')
