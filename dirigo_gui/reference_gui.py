@@ -8,6 +8,7 @@ from platformdirs import user_config_dir
 import customtkinter as ctk
 
 from dirigo.main import Dirigo
+from dirigo.components.hardware import NotConfiguredError
 from dirigo.sw_interfaces import Acquisition, Processor, Display
 
 from dirigo_gui.widgets.image_display import LiveViewer
@@ -32,23 +33,28 @@ class LeftPanel(ctk.CTkFrame):
         
         self.timing_indicator = TimingIndicator(self, controller.hw)
         self.frame_specification = FrameSpecificationControl(self, self.timing_indicator)
-        self.stack_specification = StackSpecificationControl(self, self.frame_specification)
+        
         self.timing_indicator.update(self.frame_specification.generate_spec())
 
-        self.stage_control = StageControl(
-            self, 
-            controller.hw.stages, 
-            controller.hw.objective_z_scanner, 
-        )
-
         self.acquisition_control.pack(pady=10, padx=10, fill="x")
-        
         self.frame_specification.pack(pady=10, padx=10, fill="x")
-        if controller.hw.objective_z_scanner:
+        try:
+            controller.hw.objective_z_scanner # try access
+            self.stack_specification = StackSpecificationControl(self, self.frame_specification)
             self.stack_specification.pack(pady=10, padx=10, fill="x")
+        except NotConfiguredError:
+            pass # no stack acquisitions without a z objective scanner
         self.timing_indicator.pack(pady=10, padx=10, fill="x")
-        if controller.hw.stages:
+
+        try: 
+            self.stage_control = StageControl(
+                self, 
+                controller.hw.stages, 
+                controller.hw.objective_z_scanner, 
+            )
             self.stage_control.pack(side=ctk.BOTTOM, fill="x", padx=10, pady=5)
+        except NotConfiguredError:
+            pass # no stage
 
 
 class RightPanel(ctk.CTkFrame):
@@ -97,8 +103,14 @@ class ReferenceGUI(ctk.CTk):
         )
         self.acquisition_control = self.left_panel.acquisition_control # pass refs up to the parent GUI for easier access
         self.frame_specification = self.left_panel.frame_specification
-        self.stack_specification = self.left_panel.stack_specification
-        self.stage_control = self.left_panel.stage_control
+        try:
+            self.stack_specification = self.left_panel.stack_specification
+        except AttributeError:
+            pass
+        try:
+            self.stage_control = self.left_panel.stage_control
+        except AttributeError:
+            pass
         self.left_panel.pack(side=ctk.LEFT, fill=ctk.Y)
 
         self.right_panel = RightPanel(
