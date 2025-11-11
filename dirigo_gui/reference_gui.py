@@ -199,7 +199,12 @@ class ReferenceGUI(ctk.CTk):
                 self.logger.frames_per_file = self.logger.frames_per_file
             else:
                 # Save processed (e.g. resampled/dewarped) frames by connecting to Processor
-                self.logger = self.dirigo.make("logger", "tiff", upstream=self.processor)
+                self.averager.n_frame_average = self.acquisition.spec._saved_frames_per_step
+                self.averager._skip_n_frames = self.acquisition.spec._saved_frames_per_step - 1
+                self.logger = self.dirigo.make("logger", "tiff", upstream=self.averager)
+
+            if acq_name == 'raster_stack':
+                self.logger.mode = 'z-stack'
 
             self.logger_control.link_logger_worker(self.logger)
         else:

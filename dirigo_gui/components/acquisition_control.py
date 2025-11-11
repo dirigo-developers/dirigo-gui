@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import math
 
 import customtkinter as ctk
+import numpy as np
 
 from dirigo import units
 from dirigo.components.hardware import Hardware
@@ -495,8 +496,8 @@ class _StackSpecModel:
         return self.upper - self.lower
 
     def recompute_depths(self) -> None:
-        """Depths = ⌊range / spacing⌋ + 1 (inclusive endpoints)."""
-        self.depths = math.floor(self.range / self.spacing) + 1
+        #self.depths = math.floor(self.range / self.spacing) + 1
+        self.depths = np.arange(self.lower, self.upper, self.spacing).size # follows exact math that Acquisition uses
 
     def recompute_spacing(self) -> None:
         """Spacing = range / (depths - 1); guard division‑by‑zero."""
@@ -508,10 +509,10 @@ class StackSpecificationControl(ctk.CTkFrame):
 
     _FIELD_INFO = (
         # label text   attribute name in the model
-        ("Lower:",  "lower"),
-        ("Upper:",  "upper"),
-        ("Spacing:","spacing"),
-        ("Depths:", "depths"),
+        ("Lower:",      "lower"),
+        ("Upper:",      "upper"),
+        ("Spacing:",    "spacing"),
+        ("Depths:",     "depths"),
     )
 
     def __init__(self, parent, frame_spec_control: FrameSpecificationControl):
