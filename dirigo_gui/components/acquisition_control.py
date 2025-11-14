@@ -311,8 +311,6 @@ class FrameSpecificationControl(ctk.CTkFrame):
         )
         r += 1
 
-        # flyback periods - TODO
-
         settings_grid_frame.pack(padx=0, pady=0, fill='x')
 
         # update some calculated settings
@@ -480,7 +478,6 @@ class FrameSpecificationControl(ctk.CTkFrame):
             pixel_height            = self._pixel_height,
             fill_fraction           = self._fill_fraction,
             buffers_per_acquisition = self._frames_per_acquisition,
-            flyback_periods         = 32 # TODO update this
         )
 
 
@@ -597,7 +594,6 @@ class StackSpecificationControl(ctk.CTkFrame):
             pixel_size             = f._pixel_width,
             pixel_height           = f._pixel_height,
             fill_fraction          = f._fill_fraction,
-            flyback_periods        = 32,         # TODO
             lower_limit            = m.lower,
             upper_limit            = m.upper,
             depth_spacing          = m.spacing,
@@ -642,7 +638,15 @@ class TimingIndicator(ctk.CTkFrame):
             else:
                 line_rate = self._hw.fast_raster_scanner.frequency
 
+            flyback_time = self._hw.slow_raster_scanner.flyback_time
+            if flyback_time is None:
+                flyback_time = 10 / line_rate
+            flyback_lines = round(
+                flyback_time * line_rate
+            )
+            total_lines_per_frame = spec.lines_per_frame + flyback_lines
+
             self.line_rate.configure(text=str(line_rate))
-            self.frame_rate.configure(text=str(line_rate/spec.lines_per_frame))
+            self.frame_rate.configure(text=str(line_rate/total_lines_per_frame))
 
 
