@@ -316,6 +316,9 @@ class FrameSpecificationControl(ctk.CTkFrame):
         # update some calculated settings
         self.update_array_shape()
 
+        # store spec values
+        self._timestamps = spec.timestamps_enabled
+
     def update_bidi(self):
         self._timing_indicator.update(self.generate_spec())
 
@@ -478,6 +481,7 @@ class FrameSpecificationControl(ctk.CTkFrame):
             pixel_height            = self._pixel_height,
             fill_fraction           = self._fill_fraction,
             buffers_per_acquisition = self._frames_per_acquisition,
+            timestamps_enabled      = self._timestamps,
         )
 
 
@@ -594,6 +598,7 @@ class StackSpecificationControl(ctk.CTkFrame):
             pixel_size             = f._pixel_width,
             pixel_height           = f._pixel_height,
             fill_fraction          = f._fill_fraction,
+            timestamps_enabled     = f._timestamps,
             lower_limit            = m.lower,
             upper_limit            = m.upper,
             depth_spacing          = m.spacing,

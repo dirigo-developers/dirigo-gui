@@ -123,9 +123,9 @@ class ReferenceGUI(ctk.CTk):
         self.right_panel.pack(side=ctk.RIGHT, fill=ctk.Y)
 
         self.viewer = LiveViewer(
-            parent=self,
-            width=int(self.frame_specification.shape_width.get()), 
-            height=int(self.frame_specification.shape_height.get()),
+            parent  = self,
+            width   = int(self.frame_specification.shape_width.get()), 
+            height  = int(self.frame_specification.shape_height.get()),
         )
         self.viewer.pack(expand=True, padx=10, pady=10)
 
