@@ -5,11 +5,11 @@ from tkinter import filedialog
 
 from platformdirs import user_documents_path
 
-from dirigo.sw_interfaces import Logger
+from dirigo.sw_interfaces import Writer
 
 
 
-class LoggerControl(ctk.CTkFrame):
+class WriterControl(ctk.CTkFrame):
     def __init__(self, parent, title="Data Logging", frames_per_file=256):
         super().__init__(parent)
 
@@ -76,10 +76,10 @@ class LoggerControl(ctk.CTkFrame):
         if self.save_path:
             print(f"Selected directory: {self.save_path}")
 
-    def link_logger_worker(self, logger_worker: Logger):
-        """Transfer logger GUI settings to the logger worker (thread)."""
-        logger_worker.save_path = Path(self.save_path)
-        logger_worker.basename = self.basename_entry.get()
-        logger_worker.frames_per_file = int(self._frames_per_file_entry.get())
+    def link_writer_worker(self, writer_worker: Writer):
+        """Transfer writer GUI settings to the writer worker (thread)."""
+        writer_worker.save_path = Path(self.save_path)
+        writer_worker.basename = self.basename_entry.get()
+        writer_worker.frames_per_file = int(self._frames_per_file_entry.get())
 
 

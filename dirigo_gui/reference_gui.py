@@ -1,4 +1,4 @@
-import queue
+import queue 
 from pathlib import Path
 import toml
 import warnings
@@ -14,7 +14,7 @@ from dirigo.sw_interfaces import Acquisition, Processor, Display
 from dirigo_gui.widgets.image_display import LiveViewer
 from dirigo_gui.components.detector_control import DetectorSetControl
 from dirigo_gui.components.display_control import DisplayControl
-from dirigo_gui.components.logger_control import LoggerControl
+from dirigo_gui.components.writer_control import WriterControl
 from dirigo_gui.components.acquisition_control import (
     AcquisitionControl, FrameSpecificationControl, TimingIndicator,
     StackSpecificationControl
@@ -70,8 +70,8 @@ class RightPanel(ctk.CTkFrame):
         self.display_control = DisplayControl(self, controller)
         self.display_control.pack(padx=10, pady=10, fill="x")
 
-        self.logger_control = LoggerControl(self)
-        self.logger_control.pack(padx=10, pady=10, fill="x")
+        self.writer_control = WriterControl(self)
+        self.writer_control.pack(padx=10, pady=10, fill="x")
 
         self.theme_switch = ctk.CTkSwitch(self, text="Color Mode: ", command=self._toggle_theme_callback)
         self.theme_switch.pack(side=ctk.BOTTOM, pady=10, padx=10, fill="x")
@@ -119,7 +119,7 @@ class ReferenceGUI(ctk.CTk):
             toggle_theme_callback=self.toggle_mode
         )
         self.display_control = self.right_panel.display_control 
-        self.logger_control = self.right_panel.logger_control
+        self.writer_control = self.right_panel.writer_control
         self.right_panel.pack(side=ctk.RIGHT, fill=ctk.Y)
 
         self.viewer = LiveViewer(
@@ -192,24 +192,24 @@ class ReferenceGUI(ctk.CTk):
         self.display_control.link_display_worker(self.display)   # type: ignore
 
         if log_frames:        
-            if self.logger_control.save_raw_checkbox.get():
-                # To save 'raw', directly connect the Acquisition to Logger
-                self.logger = self.dirigo.make("logger", "tiff", upstream=self.acquisition)
-                self.logger.basename = self.logger.basename + "_raw"
-                self.logger.frames_per_file = self.logger.frames_per_file
+            if self.writer_control.save_raw_checkbox.get():
+                # To save 'raw', directly connect the Acquisition to Writer
+                self.writer = self.dirigo.make("writer", "tiff", upstream=self.acquisition)
+                self.writer.basename = self.writer.basename + "_raw"
+                self.writer.frames_per_file = self.writer.frames_per_file
             else:
                 # Save processed (e.g. resampled/dewarped) frames by connecting to Processor
                 if hasattr(self.acquisition.spec, '_saved_frames_per_step'):
                     self.averager.n_frame_average = self.acquisition.spec._saved_frames_per_step
                     self.averager._skip_n_frames = self.acquisition.spec._saved_frames_per_step - 1
-                self.logger = self.dirigo.make("logger", "tiff", upstream=self.averager)
+                self.writer = self.dirigo.make("writer", "tiff", upstream=self.averager)
 
             if acq_name == 'raster_stack':
-                self.logger.mode = 'z-stack'
+                self.writer.mode = 'z-stack'
 
-            self.logger_control.link_logger_worker(self.logger)
+            self.writer_control.link_writer_worker(self.writer)
         else:
-            self.logger = None
+            self.writer = None
 
         self.acquisition.start()
 
@@ -240,9 +240,9 @@ class ReferenceGUI(ctk.CTk):
         self.acquisition.join()
         self.processor.join()
         self.display.join()
-        if self.logger is not None:
-            self.logger.stop()
-            self.logger.join()
+        if self.writer is not None:
+            self.writer.stop()
+            self.writer.join()
         self.acquisition_control.stopped()
 
     def toggle_mode(self):
