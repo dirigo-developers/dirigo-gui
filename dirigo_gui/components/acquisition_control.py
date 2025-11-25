@@ -630,6 +630,8 @@ class TimingIndicator(ctk.CTkFrame):
         if spec.pixel_time:
             fast_period_time = spec.pixel_time * round(spec.pixels_per_line / spec.fill_fraction)
             line_rate = units.Frequency(1 / fast_period_time)
+            if spec.bidirectional_scanning:
+                line_rate *= 2
             self.line_rate.configure(
                 text=str(line_rate)
             )
