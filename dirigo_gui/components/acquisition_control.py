@@ -154,8 +154,8 @@ class FrameSpecificationControl(ctk.CTkFrame):
         self._pixel_height = spec.pixel_height
         self._shape_width = 100
         self._shape_height = 100
-        self._fill_fraction = spec.fill_fraction
-        self._frames_per_acquisition = spec.buffers_per_acquisition
+        self._frames_per_acquisition = spec.frames_per_acquisition
+        self._line_duty_cycle = spec.line_duty_cycle
         self._timing_indicator = timing_indicator
 
         font = ctk.CTkFont(size=14, weight='bold')
@@ -287,16 +287,6 @@ class FrameSpecificationControl(ctk.CTkFrame):
             self.pixel_time.bind("<FocusOut>", lambda e: self.update_pixel_time())
             r += 1
 
-        # fill fraction
-        fill_fraction_label = ctk.CTkLabel(settings_grid_frame, text="Fill Fraction:", font=font)
-        fill_fraction_label.grid(row=r, column=0, padx=5, sticky='e')
-        self.fill_fraction = ctk.CTkEntry(settings_grid_frame, width=70)
-        self.fill_fraction.insert(0, str(self._fill_fraction))
-        self.fill_fraction.grid(row=r, pady=3, column=1, sticky='w')
-        self.fill_fraction.bind("<Return>", lambda e: self.update_fill_fraction())
-        self.fill_fraction.bind("<FocusOut>", lambda e: self.update_fill_fraction())
-        r += 1
-
         # frames per acquisition
         frames_per_acq_label = ctk.CTkLabel(settings_grid_frame, text="Frames/Series:", font=font)
         frames_per_acq_label.grid(row=r, column=0, padx=5, sticky='e')
@@ -315,9 +305,6 @@ class FrameSpecificationControl(ctk.CTkFrame):
 
         # update some calculated settings
         self.update_array_shape()
-
-        # store spec values
-        self._timestamps = spec.timestamps_enabled
 
     def update_bidi(self):
         self._timing_indicator.update(self.generate_spec())
@@ -437,19 +424,6 @@ class FrameSpecificationControl(ctk.CTkFrame):
         self.update_array_shape()
         self._timing_indicator.update(self.generate_spec())
 
-    def update_fill_fraction(self):
-        new_ff = float(self.fill_fraction.get())
-        if not (0 < new_ff <= 1):
-            # revert
-            self.fill_fraction.delete(0, ctk.END)
-            self.fill_fraction.insert(0, str(self._fill_fraction))
-            return
-        self._fill_fraction = new_ff
-        self.fill_fraction.delete(0, ctk.END)
-        self.fill_fraction.insert(0, str(self._fill_fraction))
-
-        self._timing_indicator.update(self.generate_spec())
-
     def update_frames_per_acquisition(self):
         new_frames = int(self.frames_per_acquisition.get())
         if new_frames <= 0:
@@ -479,9 +453,8 @@ class FrameSpecificationControl(ctk.CTkFrame):
             pixel_time              = self._pixel_time,
             pixel_size              = self._pixel_width,
             pixel_height            = self._pixel_height,
-            fill_fraction           = self._fill_fraction,
-            buffers_per_acquisition = self._frames_per_acquisition,
-            timestamps_enabled      = self._timestamps,
+            line_duty_cycle         = self._line_duty_cycle,
+            frames_per_acquisition  = self._frames_per_acquisition,
         )
 
 
@@ -597,8 +570,7 @@ class StackSpecificationControl(ctk.CTkFrame):
             pixel_time             = f._pixel_time,
             pixel_size             = f._pixel_width,
             pixel_height           = f._pixel_height,
-            fill_fraction          = f._fill_fraction,
-            timestamps_enabled     = f._timestamps,
+            line_duty_cycle        = f._line_duty_cycle,
             lower_limit            = m.lower,
             upper_limit            = m.upper,
             depth_spacing          = m.spacing,
@@ -628,7 +600,7 @@ class TimingIndicator(ctk.CTkFrame):
     def update(self, spec: FrameAcquisitionSpec):
         """Receive a FrameAcquisitionSpec and update accordingly"""
         if spec.pixel_time:
-            fast_period_time = spec.pixel_time * round(spec.pixels_per_line / spec.fill_fraction)
+            fast_period_time = spec.pixel_time * round(spec.pixels_per_line / spec.line_duty_cycle)
             line_rate = units.Frequency(1 / fast_period_time)
             if spec.bidirectional_scanning:
                 line_rate *= 2
