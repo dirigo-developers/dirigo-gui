@@ -38,19 +38,20 @@ class LeftPanel(ctk.CTkFrame):
 
         self.acquisition_control.pack(pady=10, padx=10, fill="x")
         self.frame_specification.pack(pady=10, padx=10, fill="x")
-        try:
-            controller.hw.objective_z_scanner # try access
+        try: # Try to use a z-axis motor
+            z_scanner = controller.hw.preferred_z_motor # try access
             self.stack_specification = StackSpecificationControl(self, self.frame_specification)
             self.stack_specification.pack(pady=10, padx=10, fill="x")
         except NotConfiguredError:
-            pass # no stack acquisitions without a z objective scanner
+            z_scanner = None # no stack acquisitions without a z objective scanner
         self.timing_indicator.pack(pady=10, padx=10, fill="x")
 
+        # ! Note that this does not allow for Z-axis PRESENT, XY ABSENT
         try: 
             self.stage_control = StageControl(
                 self, 
                 controller.hw.stages, 
-                controller.hw.objective_z_scanner, 
+                z_scanner,
             )
             self.stage_control.pack(side=ctk.BOTTOM, fill="x", padx=10, pady=5)
         except NotConfiguredError:

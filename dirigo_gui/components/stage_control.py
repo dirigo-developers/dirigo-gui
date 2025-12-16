@@ -1,8 +1,7 @@
 import customtkinter as ctk
 
 from dirigo import units
-from dirigo.hw_interfaces.stage import MultiAxisStage
-from dirigo.hw_interfaces.scanner import ObjectiveZScanner
+from dirigo.hw_interfaces.stage import MultiAxisStage, LinearStage
 from dirigo_gui.components.common import LabeledDisplay
 
 
@@ -116,10 +115,15 @@ class NumericEntries(ctk.CTkFrame):
 
 class StageControl(ctk.CTkFrame):
     POLLING_INTERVAL_MS = 50
-    def __init__(self, parent, stage: MultiAxisStage, objective_z_scanner: ObjectiveZScanner, *args, **kwargs):
+    def __init__(self, 
+                 parent, 
+                 stage: MultiAxisStage, 
+                 z_motor: LinearStage | None, 
+                 *args, 
+                 **kwargs):
         super().__init__(parent, *args, **kwargs)
         self._stage = stage
-        self._objective_z_scanner = objective_z_scanner
+        self._z_motor = z_motor
         self._is_pressed = False
 
         axes = []
@@ -134,7 +138,7 @@ class StageControl(ctk.CTkFrame):
         axes.append("y")
 
         self.z = ZControl(self, buttons_frame, fg_color="transparent")
-        if self._objective_z_scanner:
+        if self._z_motor:
             self.z.pack(side=ctk.RIGHT, fill="x", padx=10)
             axes.append("z")
 
@@ -149,8 +153,8 @@ class StageControl(ctk.CTkFrame):
     def poll_stage(self):
         self.xyz_entries.x.update(self._stage.x.position.with_unit("mm"))
         self.xyz_entries.y.update(self._stage.y.position.with_unit("mm"))
-        if self._objective_z_scanner:
-            self.xyz_entries.z.update(self._objective_z_scanner.position.with_unit("μm"))
+        if self._z_motor:
+            self.xyz_entries.z.update(self._z_motor.position.with_unit("μm"))
         
         self.after(self.POLLING_INTERVAL_MS, self.poll_stage)
 
@@ -165,14 +169,15 @@ class StageControl(ctk.CTkFrame):
             self._stage.y.move_velocity(velocity)
         elif direction == "-x":
             self._stage.x.move_velocity(-velocity)
-        elif direction == "+z":
-            self._objective_z_scanner.move_velocity(velocity)
-        elif direction == "-z":
-            self._objective_z_scanner.move_velocity(-velocity)
+        elif direction == "+z" and self._z_motor:
+            self._z_motor.move_velocity(velocity)
+        elif direction == "-z" and self._z_motor:
+            self._z_motor.move_velocity(-velocity)
 
     def on_release(self):
         """Stops all motors."""
         self._stage.x.stop()
         self._stage.y.stop()
-        self._objective_z_scanner.stop()
+        if self._z_motor:
+            self._z_motor.stop()
 
