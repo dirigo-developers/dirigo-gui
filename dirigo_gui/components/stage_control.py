@@ -281,7 +281,6 @@ class StageControl(ctk.CTkFrame):
             )
             self.z_goto.pack(side=ctk.LEFT)
 
-
         self.poll_stage()
 
     # ---------------- Polling ----------------
@@ -332,16 +331,15 @@ class StageControl(ctk.CTkFrame):
         new_pos = axis_obj.position + delta
         axis_obj.move_to(new_pos)
 
-
     def _start_continuous(self, direction: str) -> None:
         if direction == "+y":
             self._stage.y.move_velocity(-self._xy_velocity())
         elif direction == "+x":
-            self._stage.x.move_velocity(self._xy_velocity())
+            self._stage.x.move_velocity(-self._xy_velocity())
         elif direction == "-y":
             self._stage.y.move_velocity(self._xy_velocity())
         elif direction == "-x":
-            self._stage.x.move_velocity(-self._xy_velocity())
+            self._stage.x.move_velocity(self._xy_velocity())
         elif direction == "+z" and self._z_motor:
             self._z_motor.move_velocity(self._z_velocity())
         elif direction == "-z" and self._z_motor:
@@ -351,11 +349,10 @@ class StageControl(ctk.CTkFrame):
         if direction in {"+x", "-x", "+y", "-y"}:
             step = self._xy_step()
             if direction == "+x":
-                self._move_relative(self._stage.x, step)
-            elif direction == "-x":
                 self._move_relative(self._stage.x, -step)
+            elif direction == "-x":
+                self._move_relative(self._stage.x, step)
             elif direction == "+y":
-                # match your existing "+y" sign convention (it moved y negative in continuous)
                 self._move_relative(self._stage.y, -step)
             elif direction == "-y":
                 self._move_relative(self._stage.y, step)
