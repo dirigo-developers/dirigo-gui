@@ -312,8 +312,11 @@ class ReferenceGUI(ctk.CTk):
             toml.dump(settings, file)
 
 
+def main():
+    dirigo = Dirigo()
+    gui = ReferenceGUI(dirigo)
+    gui.mainloop()
+
 
 if __name__ == "__main__":
-    dirigo = Dirigo()
-    app = ReferenceGUI(dirigo)
-    app.mainloop()
+    main()

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dirigo-gui"
-version = "0.1.4"
+version = "0.1.5"
 description = "Dirigo reference GUI implementation"
 authors = [
     {name = "T. D. Weber", email = "tweber@mit.edu"}
@@ -27,6 +27,10 @@ dependencies = [
     "pillow"
 ]
 urls = {"Homepage" = "https://github.com/dirigo-developers/dirigo-gui"}
+
+
+[project.scripts]
+dirigo-gui = "dirigo_gui.reference_gui:main"
 
 [project.entry-points."dirigo_guis"]
 reference = "dirigo_gui:ReferenceGUI"
