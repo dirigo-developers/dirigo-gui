@@ -1,11 +1,11 @@
 # dirigo-gui
-Reference GUI for Dirigo image acquisition software. Provides a basic frame scanning, display, and writing.
+Reference GUI for [Dirigo](https://github.com/dirigo-developers) image acquisition software. Provides a basic frame scanning, display, and writing.
 
 [![PyPI](https://img.shields.io/pypi/v/dirigo-gui)](https://pypi.org/project/dirigo-gui/)
 
 
 ## Installation
-First install required hardware plugins. A list can be found here: (https://github.com/orgs/dirigo-developers/repositories?type=all). We recommend installing `dirigo` and plugins within a virtual environment (e.g. conda).
+First install Dirigo and desired plugins. A list can be found here: (https://github.com/orgs/dirigo-developers/repositories?type=all). We recommend installing `dirigo` and plugins within a virtual environment (e.g. conda).
 
 Then run:
 ```bash
