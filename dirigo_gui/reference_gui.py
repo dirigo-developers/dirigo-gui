@@ -13,6 +13,7 @@ from dirigo.sw_interfaces import Acquisition, Processor, Display
 
 from dirigo_gui.widgets.image_display import LiveViewer
 from dirigo_gui.components.detector_control import DetectorSetControl
+from dirigo_gui.components.laser_control import LaserControl
 from dirigo_gui.components.display_control import DisplayControl
 from dirigo_gui.components.writer_control import WriterControl
 from dirigo_gui.components.acquisition_control import (
@@ -67,6 +68,10 @@ class RightPanel(ctk.CTkFrame):
         if controller.hw.detectors:
             self.detector_control = DetectorSetControl(self, controller.hw.detectors)
             self.detector_control.pack(padx=10, pady=10, fill="x")
+
+        if controller.hw.beam_attenuator:
+            self.laser_control = LaserControl(self, controller.hw.beam_attenuator)
+            self.laser_control.pack(padx=10, pady=10, fill="x")
         
         self.display_control = DisplayControl(self, controller)
         self.display_control.pack(padx=10, pady=10, fill="x")

@@ -33,8 +33,8 @@ class DetectorFrame(ctk.CTkFrame):
             # Gain slider with Input Box
             slider_frame = ctk.CTkFrame(self, fg_color="transparent")
             
-            min_slider_label = ctk.CTkLabel(slider_frame, text="Gain:")
-            min_slider_label.grid(row=0, column=0, padx=5)
+            slider_label = ctk.CTkLabel(slider_frame, text="Gain:")
+            slider_label.grid(row=0, column=0, padx=5)
             self.entry = ctk.CTkEntry(slider_frame, width=56)
             self.entry.insert(0, f"{self._detector.gain}")
             self.entry.grid(row=0, column=2, padx=5, pady=2)
